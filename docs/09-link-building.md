@@ -12,13 +12,19 @@ Do not buy directory packs. Do not swap links with unrelated blogs. Do not post 
 | https://powerstationsize.com/methodology/ | Formulas |
 | https://powerstationsize.com/llms.txt | LLM citation map |
 
-## Channels in this pass
+## Done 2026-10-21
 
-1. IndexNow key at `https://powerstationsize.com/e553eb90b3e93d5adda197d3b178a3bb.txt`
-2. Public GitHub source (this repository)
-3. Pull request to [awesome-calculators](https://github.com/xxczaki/awesome-calculators) Web section
-4. Pull request to [awesome-camping-power](https://github.com/632317117/awesome-camping-power) Calculators section
-5. Operator-sent community posts (Reddit / iRV2 / DIY Solar) — copy below. Do not automate those.
+| Channel | Result |
+|---|---|
+| IndexNow key | https://powerstationsize.com/e553eb90b3e93d5adda197d3b178a3bb.txt |
+| IndexNow POST | `api.indexnow.org` 202, Bing 200; two URL batches |
+| Public source | https://github.com/rosebsnowden-eng/powerstation-size |
+| awesome-calculators | https://github.com/xxczaki/awesome-calculators/pull/156 (open) |
+| awesome-camping-power | https://github.com/632317117/awesome-camping-power/pull/1 (open) |
+
+Skipped: paid directories, energy-model academic lists, empty vanlife lists, Wikipedia, automated Reddit.
+
+## Operator-sent community posts (copy below). Do not automate those.
 
 ## Ready posts (send from a real account)
 

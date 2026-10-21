@@ -52,6 +52,7 @@ The site answers how many watt-hours to shop for, whether an inverter can hold r
 - [Privacy](https://powerstationsize.com/privacy/)
 - [Terms](https://powerstationsize.com/terms/)
 - Contact: hello@powerstationsize.com
+- Source: https://github.com/rosebsnowden-eng/powerstation-size
 
 ## Optional
 
