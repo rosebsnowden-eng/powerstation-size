@@ -21,8 +21,14 @@ Do not buy directory packs. Do not swap links with unrelated blogs. Do not post 
 | Public source | https://github.com/rosebsnowden-eng/powerstation-size |
 | awesome-calculators | https://github.com/xxczaki/awesome-calculators/pull/156 (open) |
 | awesome-camping-power | https://github.com/632317117/awesome-camping-power/pull/1 (open) |
+| chinese-independent-developer | https://github.com/1c7/chinese-independent-developer/pull/1621 |
+| ruanyf/weekly | https://github.com/ruanyf/weekly/issues/12625 |
+| Launching Next | queued id 164738 |
+| Sites Plus | awaiting approval |
 
-Skipped: paid directories, energy-model academic lists, empty vanlife lists, Wikipedia, automated Reddit.
+Full 800+ pack triage: `docs/10-directory-submissions.md`.
+
+Skipped: paid directories, energy-model academic lists, empty vanlife lists, Wikipedia, automated Reddit, AI-only directories, blog-comment spam.
 
 ## Operator-sent community posts (copy below). Do not automate those.
 
