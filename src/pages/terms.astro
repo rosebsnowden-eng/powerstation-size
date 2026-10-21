@@ -1,0 +1,155 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site.ts';
+---
+
+<Base
+  title="Terms of use"
+  description={`Rules for using ${site.name}: estimates only, no medical or electrical advice, manufacturer pages win on specs, and how to report a wrong number.`}
+>
+  <article class="mx-auto max-w-3xl px-4 py-12">
+    <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">Terms of use</h1>
+    <p class="mt-4 text-sm text-ink-500 dark:text-ink-400">Last updated: {site.legalUpdated}.</p>
+
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      These terms apply to {site.name} at https://{site.domain} and to the calculator, scenario
+      pages, station pages, and guides on that domain. They explain the intended use and limitations
+      of the service. Nothing on this page overrides rights that applicable law does not allow us
+      to exclude.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">What this site is</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      {site.name} is a free planning tool. It sizes a portable power station from a list of devices,
+      and it republishes manufacturer specifications with a source URL and a verification date. It
+      is not a store, not a licensed electrician, not a clinician, and not a laboratory.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Estimates, not a product</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Runtime, recommended capacity, surge checks, and solar figures are planning estimates. They
+      are calculated from published nameplate numbers and from engineering ranges in the device
+      library. They move with temperature, battery age, inverter losses, duty cycle, and how your
+      specific appliance actually draws power.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      An estimate is not a warranty, a test report, a certification, or a promise that a station
+      will start or run your load. The
+      <a class="text-moss-700 underline dark:text-moss-300" href="/methodology/">methodology page</a>
+      describes the calculation. If a displayed result conflicts with the documented method, do
+      not rely on it. Contact us so we can investigate; either the code or the description may be
+      wrong.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Not medical advice</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      A portable power station is not a medical device. It is not a substitute for the battery
+      module your equipment manufacturer specifies for a CPAP, BiPAP, concentrator, or any other
+      therapy device. Pages that mention CPAP are watt-hour estimates. They are not a therapy plan
+      and they are not a compatibility rating.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      If you depend on a therapy device, confirm the backup plan with your equipment provider and
+      your clinician before an outage. Do not treat a number on this site as clearance to skip that
+      conversation.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Not electrical advice</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Never backfeed household wiring through a wall or dryer outlet. This can create a fatal shock
+      hazard. Whole-home backup needs a manufacturer-approved, code-compliant transfer or isolation
+      system, installed by a qualified electrician where required. Do not connect to household
+      circuits without that system. Follow the equipment instructions for direct appliance use.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      A "solar generator" on this site means a battery with an optional solar input. It does not
+      generate electricity on its own. Without panels it only holds what you charge into it.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Specifications</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Capacity, continuous watts, peak watts, and other station fields are copied from the
+      manufacturer page named on the model record, with a verification date. If the manufacturer
+      page and this site disagree, the manufacturer page wins. Manufacturers change pages. A figure
+      verified more than 90 days ago is flagged on the model page for that reason.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Some peak figures are resistive boost ratings (for example X-Boost or Power Lifting), not
+      inverter surge. Those records are marked so a motor start is not treated as cleared. Device
+      wattages in the picker are typical ranges, not a measurement of your machine.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      If a number here is wrong, email the model name and the manufacturer URL that contradicts us
+      to
+      <!--email_off--><a class="text-moss-700 underline dark:text-moss-300" href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a><!--/email_off-->.
+      We will investigate and update confirmed errors. Reporting a correction does not limit any
+      legal rights or remedies you may have.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Your load data</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      The calculator runs in your browser. A shared URL can be read by anyone who has the link. See
+      the <a class="underline" href="/privacy/">privacy policy</a>.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Acceptable use</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      You may use the calculator and read the pages for personal planning. You may not:
+    </p>
+    <ul class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">Scrape the catalog to republish it as your own verified database.</li>
+      <li class="max-w-[68ch]">Present this site's estimates to someone else as medical or electrical advice from us.</li>
+      <li class="max-w-[68ch]">Overload, deface, impersonate, or attempt to break the site.</li>
+      <li class="max-w-[68ch]">Use automated traffic that is meant to distort Analytics or to copy the database.</li>
+    </ul>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Intellectual property</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      The calculator, the copy, and the arrangement of the spec library are {site.name}. Brand
+      names, model names, and packshots belong to their manufacturers. They appear here to identify
+      products, not as an endorsement by those manufacturers.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Third-party sites</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Manufacturer source links leave this site. Their terms and privacy rules apply once you are
+      there. Until affiliate programs are live, those links are source citations, not checkout.
+      Status is on the
+      <a class="underline" href="/disclosure/">affiliate disclosure</a>.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">No warranty</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      To the extent permitted by applicable law, the site is provided as is and as available.
+      {site.name} does not warrant that a figure is
+      current, that a station will start a given load, or that the service will be uninterrupted.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Limitation of liability</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      These estimates cannot account for every device, installation, or outage. Verify equipment
+      requirements before making purchase or backup decisions. To the extent permitted by
+      applicable law, we exclude liability for indirect or consequential losses arising from use
+      of this free planning tool.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Nothing in these terms excludes or limits liability that cannot lawfully be excluded or
+      limited, including liability for fraud or for death or personal injury caused by negligence
+      where applicable law prohibits that exclusion. Statutory consumer rights and non-excludable
+      remedies remain unaffected.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Changes</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      These terms may be updated when the service changes. The date at the top identifies the
+      published version. Changes do not remove non-excludable rights or apply retroactively where
+      applicable law prohibits that.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Contact</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      {site.name}, {site.domain}. Email
+      <!--email_off--><a class="text-moss-700 underline dark:text-moss-300" href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a><!--/email_off-->.
+    </p>
+  </article>
+</Base>

@@ -1,0 +1,157 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site.ts';
+---
+
+<Base
+  title="About PowerStation Size"
+  description="What PowerStation Size is, how the calculator and spec library work, how the site is funded, and how to send a correction."
+>
+  <article class="mx-auto max-w-3xl px-4 py-12">
+    <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">About {site.name}</h1>
+    <p class="mt-4 text-sm text-ink-500 dark:text-ink-400">{site.domain}</p>
+
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      {site.name} is a free calculator and a library of manufacturer specifications for portable
+      power stations. The job of the site is to answer how much capacity you need, whether the
+      inverter can hold the running watts, and whether a published peak will start a motor. It is
+      not a ranked review list and it is not a store.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Why the site exists</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Most sizing pages answer a different question. They tell you which product is best in a
+      category. The question people actually type is closer to: will this run a fridge through an
+      outage, or a CPAP through a night, and how many watt-hours should I shop for.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Those are two checks, not one. A station can hold enough energy and still refuse to start a
+      compressor. A CPAP with a heated humidifier can draw roughly twice the power of the same
+      machine running dry. Combining those into one default would give an answer that is wrong in
+      the direction that matters.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">What you can do here</h2>
+    <ul class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">
+        <a class="text-moss-700 underline dark:text-moss-300" href="/calculator/">The calculator</a>
+        takes the devices you run. Capacity, continuous watts, and startup surge are checked
+        separately. Hours update as you type. You can copy a link that encodes the load in the URL.
+      </li>
+      <li class="max-w-[68ch]">
+        <a class="text-moss-700 underline dark:text-moss-300" href="/scenarios/">Worked scenarios</a>
+        (CPAP night, fridge outage, camping day, a power tool) show the estimated watt-hours and
+        which published nameplates cover that load.
+      </li>
+      <li class="max-w-[68ch]">
+        <a class="text-moss-700 underline dark:text-moss-300" href="/stations/">Station pages</a>
+        list capacity, continuous output, and peak, with the manufacturer URL and the date those
+        figures were read. A peak that is only a resistive boost is labeled so it is not used as
+        inverter surge.
+      </li>
+      <li class="max-w-[68ch]">
+        <a class="text-moss-700 underline dark:text-moss-300" href="/guides/">Guides</a>
+        include decision pages for
+        <a class="text-moss-700 underline dark:text-moss-300" href="/guides/cpap-backup-power/">CPAP backup</a>
+        and
+        <a class="text-moss-700 underline dark:text-moss-300" href="/guides/camping-power-station/">camping</a>,
+        plus watts versus watt-hours and surge versus boost.
+      </li>
+    </ul>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">How the numbers are made</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Each station record is copied from the manufacturer product page named on that record:
+      capacity, continuous output, and the peak figure, plus the date that page was read. If the
+      only peak on the page is a resistive boost, the record is marked so the calculator will not
+      use it to clear a motor start. Runtime hours are calculated from those figures and from the
+      device library. They are not lab measurements. This site does not claim to have tested the
+      machines overnight.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Device wattages are typical ranges. Where a manufacturer publishes a figure, that is noted on
+      the device entry. Where it does not, the range is an engineering estimate used to seed the
+      calculator. You can edit watts and hours on every row.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Default constants: inverter efficiency 0.85, reserve margin 1.20, usable capacity 0.85. The
+      formulas, the solar check, and the known limitations are on the
+      <a class="text-moss-700 underline dark:text-moss-300" href="/methodology/">methodology page</a>.
+      A verification older than 90 days is flagged on the model page.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Who publishes this site</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      {site.name} is published by {site.publisherName}. It is a specification library and
+      calculator, not a lab and not a medical publisher. Station numbers are transcribed from the
+      manufacturer page named on each record. Runtime hours are calculated from those figures and
+      from the device library. This site does not claim hands-on overnight testing.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Corrections go to
+      <!--email_off--><a class="text-moss-700 underline dark:text-moss-300" href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a><!--/email_off-->.
+      Send the model name and the manufacturer page that contradicts the record.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">How it is funded</h2>
+    {
+      site.affiliateLive ? (
+        <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+          The site is supported by affiliate commissions. If you follow a link to a retailer and buy
+          something, we may earn a commission at no extra cost to you. That never changes what the
+          calculator recommends. See the
+          <a class="underline" href="/disclosure/">affiliate disclosure</a>.
+        </p>
+      ) : (
+        <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+          There are no retailer checkout links on this site. Hosting is static. If an affiliate
+          program later approves the site, commissions may support the work, and the
+          <a class="underline" href="/disclosure/">disclosure page</a> will name the program in the
+          same deploy as the links. Commissions will not change calculator output or which models
+          appear.
+        </p>
+      )
+    }
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      We do not accept payment for placement. We do not run price-tracking or price-drop alerts.
+      Manufacturer list prices, where available, are dated reference figures, not live offers.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">What this site is not</h2>
+    <ul class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">
+        It is not medical advice. A power station is not a medical device and is not a substitute
+        for the battery your equipment maker specifies. Confirm a therapy backup plan with your
+        provider and your clinician.
+      </li>
+      <li class="max-w-[68ch]">
+        It is not electrical advice. Never backfeed household wiring through a wall or dryer
+        outlet. Whole-home backup needs a manufacturer-approved, code-compliant transfer or isolation
+        system, installed by a qualified electrician where required.
+      </li>
+      <li class="max-w-[68ch]">
+        It is not a review site with hands-on testing. Every runtime figure is calculated from
+        published specifications.
+      </li>
+      <li class="max-w-[68ch]">
+        It is not the manufacturer. Brand names and packshots identify products. They are not an
+        endorsement by those companies.
+      </li>
+    </ul>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Contact and corrections</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Email
+      <!--email_off--><a class="text-moss-700 underline dark:text-moss-300" href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a><!--/email_off-->.
+      If a specification is wrong, send the model name and the manufacturer page that contradicts
+      us. That is the most serious error this site can make. The record will be corrected and the
+      verification date updated.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Privacy practices are on the
+      <a class="underline" href="/privacy/">privacy policy</a>.
+      Rules for using the estimates are on the
+      <a class="underline" href="/terms/">terms of use</a>.
+    </p>
+  </article>
+</Base>

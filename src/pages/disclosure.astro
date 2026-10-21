@@ -1,0 +1,89 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site.ts';
+---
+
+<Base
+  title="Affiliate disclosure"
+  description={`How ${site.name} is funded, what is and is not an affiliate link, and that commissions do not change calculator output or the spec library.`}
+>
+  <article class="mx-auto max-w-3xl px-4 py-12">
+    <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">Affiliate disclosure</h1>
+    <p class="mt-4 text-sm text-ink-500 dark:text-ink-400">Last updated: {site.legalUpdated}.</p>
+
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      This page is the material-connection disclosure for {site.name}. It is linked from every
+      footer. When a retailer checkout link exists, a short notice will also sit next to that link.
+      The rule is the FTC's Endorsement Guides: if a commission is possible, say so where a reader
+      can see it before they click.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Current status</h2>
+    {
+      site.affiliateLive ? (
+        <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+          Some links on this site are affiliate links. If you follow one and buy, we may earn a
+          commission at no extra cost to you. The calculator still filters on published
+          specifications. We do not accept payment for placement.
+        </p>
+      ) : (
+        <>
+          <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+            No affiliate links and no retailer checkout links are live. Station pages name the
+            manufacturer product page as the source. Those outbound links use rel="nofollow
+            noopener". They are citations, not store buttons.
+          </p>
+          <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+            If a program later approves this site, three things will happen in the same deploy:
+            checkout links may appear on model pages, this page will name the program, and the
+            footer will add a short notice that some links may be affiliate links. Until that
+            deploy, there is nothing to disclose beyond this status.
+          </p>
+        </>
+      )
+    }
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">What a commission will not change</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Whether or not a link exists, these stay independent of payment:
+    </p>
+    <ul class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">
+        Calculator output. Runtime and recommended capacity use the same formula on the
+        <a class="underline" href="/methodology/">methodology page</a>.
+      </li>
+      <li class="max-w-[68ch]">
+        Which models appear. A record ships only when a person has read the manufacturer page named
+        in its source URL.
+      </li>
+      <li class="max-w-[68ch]">
+        Whether a boost rating is treated as inverter surge. It is not. A motor start is not cleared
+        by X-Boost, Power Lifting, SurgePad, or any other resistive boost name.
+      </li>
+      <li class="max-w-[68ch]">Paid placement. We do not accept payment to add, rank, or hide a model.</li>
+    </ul>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">What this site will not add</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      We do not provide price history, price-drop alerts, or marketplace price curves. Manufacturer
+      list prices, when shown, are dated figures from the source page, not live offers. Program
+      requirements will be checked before any affiliate integration is enabled.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      We do not run "official store" language for a brand we do not operate. Brand names identify
+      products.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">How to read a link, when links exist</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      A manufacturer source URL is a citation. An affiliate checkout URL, if one is added, will be
+      labeled as such next to the control. Until then, there is no checkout control to label.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Questions</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Email
+      <!--email_off--><a class="text-moss-700 underline dark:text-moss-300" href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a><!--/email_off-->.
+    </p>
+  </article>
+</Base>

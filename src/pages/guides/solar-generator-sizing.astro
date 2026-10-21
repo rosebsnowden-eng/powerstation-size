@@ -1,0 +1,91 @@
+---
+import Base from '../../layouts/Base.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+
+// Term first-use explanation is mandatory on any page using "solar generator".
+// docs/04-compliance.md section 3.1.
+---
+
+<Base
+  title="How to size a solar generator"
+  description="Watts versus watt-hours, why panel wattage is not the same as charge rate, and how to work out the capacity you need."
+>
+  <article class="mx-auto max-w-3xl px-4 py-16">
+    <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">How to size a solar generator</h1>
+
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      A "solar generator" is a battery with an optional solar input. It does not generate
+      electricity, and without panels it is limited to whatever you charge into it. The search term
+      is useful because that is what people type, but the device is a battery, and sizing it is
+      about two separate numbers that are easy to confuse.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Watts and watt-hours are not the same</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Watts measure how fast energy flows. Watt-hours measure how much you have stored. A station
+      rated at 1,000 W of output can still hold only 500 Wh of energy, which means it can run a
+      1,000 W load for about half an hour, not for a whole night.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      When you look at a spec sheet, the output rating tells you what it can start. The capacity
+      tells you how long it lasts. You need both to clear your load, and they are checked
+      independently.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Panel wattage is not charge rate</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      A 400 W panel does not deliver 400 W into the battery. Panel ratings assume full sun at a
+      specific temperature, and real conditions rarely match. Angle, cloud, season, and heat all
+      reduce output, and the charge controller converts at a loss.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      A practical planning figure is that you will see somewhere between half and three quarters of
+      the panel's nameplate rating on a good day. Treat solar as a way to extend a stay rather than
+      a way to run a load indefinitely.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Working out your number</h2>
+    <ol class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">
+        List the devices you need and the hours per day for each. Multiply watts by hours to get
+        watt-hours.
+      </li>
+      <li class="max-w-[68ch]">
+        Apply a duty cycle to anything with a compressor or thermostat. A fridge does not draw its
+        nameplate wattage continuously.
+      </li>
+      <li class="max-w-[68ch]">
+        Divide by inverter efficiency, roughly 0.85, to account for conversion losses.
+      </li>
+      <li class="max-w-[68ch]">
+        Add a reserve margin. Fifteen percent is tight, twenty is standard, more than thirty if you
+        expect cold weather.
+      </li>
+    </ol>
+    <p class="mt-4 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+      The <a class="text-moss-700 underline dark:text-moss-300" href="/calculator/">calculator</a> does
+      all four steps and shows you which of capacity or output is the binding constraint.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">What panels will and will not do</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Panels are best understood as a top-up. If your daily use is 1,500 Wh and your panel array
+      realistically delivers 300 W for five good hours, you can recover most of a day's use. If your
+      use is a space heater at 1,500 W continuous, no practical array on a portable station will keep
+      up, and the honest answer is that this is the wrong device for that job.
+    </p>
+
+    <p class="mt-10 max-w-[68ch] text-sm">
+      Next:
+      <a class="text-moss-700 underline dark:text-moss-300" href="/guides/watts-vs-watt-hours/">watts versus watt-hours</a>,
+      {' '}
+      <a class="text-moss-700 underline dark:text-moss-300" href="/calculator/">size the load in the calculator</a>
+      or read
+      <a class="text-moss-700 underline dark:text-moss-300" href="/guides/cpap-backup-power/">how to estimate CPAP backup power</a>.
+    </p>
+
+    <div class="mt-10">
+      <Disclaimer electrical />
+    </div>
+  </article>
+</Base>

@@ -1,0 +1,58 @@
+---
+/**
+ * Standing disclaimer. docs/04-compliance.md requires this class of notice on
+ * every results surface and every page that discusses backup power.
+ * It is not decoration: the wording is a liability boundary.
+ */
+interface Props {
+  /** Adds the medical-adjacency paragraph for CPAP and other therapy pages. */
+  medical?: boolean;
+  /** Adds the backfeed / panel warning for home-backup content. */
+  electrical?: boolean;
+}
+
+const { medical = false, electrical = false } = Astro.props;
+---
+
+<aside
+  class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-6 text-base leading-7 text-ink-600 dark:border-ink-800 dark:bg-ink-900 dark:text-ink-300"
+  aria-label="Important limitations"
+>
+  <p class="text-lg font-semibold tracking-tight text-ink-900 dark:text-ink-100">These numbers are estimates</p>
+  <p class="mt-2 max-w-[72ch]">
+    Runtime depends on temperature, battery age, inverter losses, and how your specific device
+    behaves. Every hour and watt-hour here is calculated from published specs and engineering
+    ranges, not from a lab test of your machine. Treat it as a planning estimate, not a guaranteed
+    runtime. A passing wattage check does not verify startup duration, other running loads,
+    adapter compatibility, or uninterrupted power. See the <a href="/methodology/" class="underline">methodology</a>
+    for the model's limits.
+  </p>
+
+  {
+    medical && (
+      <p class="mt-3 max-w-[72ch]">
+        <strong class="text-ink-900 dark:text-ink-100">Not medical advice.</strong> A portable power
+        station is not a medical device and is not a substitute for the battery system your equipment
+        manufacturer specifies. If you depend on a therapy device, confirm your backup plan with
+        your equipment provider and your clinician before an outage, not during one.
+      </p>
+    )
+  }
+
+  {
+    electrical && (
+      <p class="mt-3 max-w-[72ch]">
+        <strong class="text-ink-900 dark:text-ink-100">Not electrical advice.</strong> Never backfeed
+        household wiring through a wall or dryer outlet. This can create a fatal shock hazard.
+        Whole-home backup needs a manufacturer-approved, code-compliant transfer or isolation system,
+        installed by a qualified electrician where required. Do not connect to household circuits
+        without that system.
+      </p>
+    )
+  }
+
+  <p class="mt-3 max-w-[72ch] text-ink-500 dark:text-ink-400">
+    A "solar generator" is a battery with an optional solar input. It does not generate power on its
+    own, and without panels it is limited to what you charge into it.
+  </p>
+</aside>

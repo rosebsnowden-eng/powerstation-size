@@ -1,0 +1,134 @@
+---
+/**
+ * Homepage.
+ *
+ * This is a surface where taste-skill genuinely applies (marketing page).
+ * Design read (taste-skill 0.B):
+ *   "Reading this as: consumer utility landing page for US homeowners and
+ *    CPAP users researching backup power, with a trust-first language,
+ *    leaning toward Tailwind utilities + system sans + static states."
+ * Dials: VARIANCE 4 / MOTION 2 / DENSITY 5 (trust-first row, 1.A).
+ * Em-dash ban (9.G) is observed throughout.
+ */
+import Base from '../layouts/Base.astro';
+import Calculator from '../components/Calculator.astro';
+import Disclaimer from '../components/Disclaimer.astro';
+
+const pillars = [
+  {
+    title: 'Sized from your devices, not a category average',
+    body: 'Enter what you actually run: a CPAP, a fridge, a router. The recommendation follows the arithmetic rather than a marketing tier.',
+  },
+  {
+    title: 'Two checks, not one',
+    body: 'Capacity and output are separate constraints. A station that holds enough energy but cannot start your fridge is not a match, so both are tested.',
+  },
+  {
+    title: 'Every spec traceable to a source',
+    body: 'Model pages carry the manufacturer URL and the date each figure was verified. Nothing in the database is written from memory.',
+  },
+];
+
+const questions = [
+  {
+    q: 'Is a portable power station the same as a solar generator?',
+    a: 'The industry uses the terms interchangeably, but the device is a battery with an optional solar input. It does not generate electricity. Without panels, it only holds what you put into it.',
+  },
+  {
+    q: 'Can I run my whole house from one?',
+    a: 'This calculator does not design household-circuit backup. Whole-home backup needs a manufacturer-approved, code-compliant transfer or isolation system, installed by a qualified electrician where required. Never backfeed household wiring through a wall or dryer outlet.',
+  },
+  {
+    q: 'Why does the calculator ask about a humidifier?',
+    a: 'A CPAP with a heated humidifier can draw roughly twice the power of one without. Combining them into a single default would give people an answer that is wrong by a wide margin, in the direction that matters most.',
+  },
+];
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: questions.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Base
+  title="Portable power station calculator"
+  description="Size a portable power station from the devices you run. Capacity, continuous watts, and startup surge are checked separately against manufacturer specs."
+>
+  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+
+  <section>
+    <div class="mx-auto max-w-6xl px-4 pb-6 pt-8 lg:pt-10">
+      <div class="max-w-3xl">
+        <h1 class="display text-3xl font-medium leading-[1.12] tracking-tight md:text-4xl">
+          Size a portable power station from the devices you run
+        </h1>
+        <p class="mt-3 max-w-[62ch] text-base text-ink-600 dark:text-ink-300">
+          Capacity, continuous watts, and startup surge are checked separately. Hours update as you type.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="mx-auto max-w-7xl px-4 py-8">
+    <Calculator />
+  </div>
+
+  <!-- Why this differs. Two-column, no zigzag repetition, no eyebrows. -->
+  <section class="border-y border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
+    <div class="mx-auto max-w-6xl px-4 py-12">
+      <h2 class="text-2xl font-semibold tracking-tight">Built to answer the question, not sell a tier</h2>
+      <div class="mt-10 grid gap-10 md:grid-cols-3">
+        {
+          pillars.map((p) => (
+            <div>
+              <h3 class="text-base font-semibold">{p.title}</h3>
+              <p class="mt-3 max-w-[46ch] text-sm text-ink-600 dark:text-ink-300">{p.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-white dark:bg-ink-900">
+    <div class="mx-auto max-w-6xl px-4 py-12">
+      <h2 class="text-2xl font-semibold tracking-tight">Common questions</h2>
+      <div class="mt-8">
+        {
+          questions.map((item, index) => (
+            <details class="border-b border-ink-200 py-5 dark:border-ink-800" open={index === 0}>
+              <summary class="cursor-pointer text-lg font-semibold tracking-tight">{item.q}</summary>
+              <p class="mt-3 max-w-[72ch] text-base leading-7 text-ink-600 dark:text-ink-300">{item.a}</p>
+            </details>
+          ))
+        }
+      </div>
+
+      <p class="mt-8 text-base text-ink-600 dark:text-ink-300">
+        More detail:
+        <a class="text-moss-700 underline dark:text-moss-300" href="/guides/solar-generator-sizing/">how to size a solar generator</a>,
+        {' '}
+        <a class="text-moss-700 underline dark:text-moss-300" href="/guides/cpap-backup-power/">CPAP backup</a>,
+        {' '}
+        <a class="text-moss-700 underline dark:text-moss-300" href="/guides/camping-power-station/">a camping day</a>,
+        {' '}
+        <a class="text-moss-700 underline dark:text-moss-300" href="/guides/can-a-portable-power-station-run-a-refrigerator/">running a fridge</a>,
+        {' '}
+        <a class="text-moss-700 underline dark:text-moss-300" href="/guides/anker-solix-c1000-vs-bluetti-elite-100-v2/">C1000 vs Elite 100 V2</a>,
+        {' '}
+        and
+        {' '}
+        <a class="text-moss-700 underline dark:text-moss-300" href="/stations/">verified station specs</a>.
+      </p>
+
+      <div class="mt-10">
+        <Disclaimer medical electrical />
+      </div>
+    </div>
+  </section>
+</Base>

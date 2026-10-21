@@ -1,0 +1,241 @@
+---
+import '../styles/global.css';
+import { site, nav } from '../data/site.ts';
+import Wordmark from '../components/Wordmark.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  /** Emitted in <head> as a canonical-adjacent hint; leave blank for the homepage. */
+  canonicalPath?: string;
+  /** Absolute or site-relative image for Open Graph. Defaults to the site card. */
+  ogImage?: string;
+}
+
+const { title, description, canonicalPath, ogImage } = Astro.props;
+const fullTitle = canonicalPath ? `${title} | ${site.name}` : `${site.name} | ${title}`;
+const canonical = new URL(canonicalPath ?? Astro.url.pathname, site.url).href;
+const image = new URL(ogImage ?? '/og.png', site.url).href;
+const path = Astro.url.pathname;
+const isCurrent = (href: string) =>
+  href === '/' ? path === '/' : path === href || path.startsWith(href);
+
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: site.name,
+  url: site.url,
+  description: site.tagline,
+};
+
+const orgSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: site.name,
+  url: site.url,
+  email: site.contactEmail,
+  description: site.tagline,
+  logo: {
+    '@type': 'ImageObject',
+    url: new URL('/og.png', site.url).href,
+  },
+  founder: {
+    '@type': 'Person',
+    name: site.publisherName,
+    email: site.contactEmail,
+  },
+};
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="strict-origin" />
+    <script is:inline src="/privacy.js" data-ga4={site.analytics.ga4}></script>
+    <title>{fullTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.ico?v=7" sizes="any" />
+    <link rel="icon" href="/favicon.svg?v=7" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/favicon-32.png?v=7" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=Source+Sans+3:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={image} />
+    <meta property="og:locale" content="en_US" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={image} />
+    <meta name="theme-color" content="#2f5c3a" />
+    <script type="application/ld+json" set:html={JSON.stringify(websiteSchema)} />
+    <script type="application/ld+json" set:html={JSON.stringify(orgSchema)} />
+  </head>
+  <body class="bg-ink-50 text-ink-900 dark:bg-ink-950 dark:text-ink-100 antialiased">
+    <a
+      href="#main"
+      class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-[var(--radius-control)] focus:bg-amber-accent-600 focus:px-4 focus:py-2 focus:text-white"
+    >
+      Skip to content
+    </a>
+
+    <!--
+      Navigation collapses below 640px. The inline row is 271px wide, which overflows
+      a 375px viewport once the wordmark and gutters are accounted for. The collapsed
+      state uses a native <details> disclosure, so it needs no JavaScript and works
+      before hydration.
+    -->
+    <header class="site-header relative">
+      <div class="mx-auto flex h-[5.25rem] max-w-6xl items-center gap-4 px-4">
+        <a href="/" class="wordmark-link shrink-0 text-ink-900 dark:text-ink-50" aria-label={site.name}>
+          <Wordmark compact />
+        </a>
+
+        <nav aria-label="Primary" class="ml-auto hidden items-center gap-1 text-sm sm:flex">
+          {
+            nav.map((item) => (
+              <a
+                href={item.href}
+                aria-current={isCurrent(item.href) ? 'page' : undefined}
+                class:list={[
+                  'press rounded-[var(--radius-control)] px-3 py-2 text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-white',
+                  isCurrent(item.href) && 'bg-ink-100 font-semibold text-ink-900 dark:bg-ink-800 dark:text-white',
+                ]}
+              >
+                {item.label}
+              </a>
+            ))
+          }
+        </nav>
+
+        <details class="ml-auto sm:hidden">
+          <summary
+            class="press cursor-pointer list-none rounded-[var(--radius-control)] border border-ink-200 px-3 py-2 text-sm font-medium dark:border-ink-700"
+          >
+            Menu
+          </summary>
+          <nav
+            aria-label="Primary mobile"
+            class="absolute left-4 right-4 top-16 z-40 rounded-[var(--radius-card)] border border-ink-200 bg-white p-2 shadow-lg dark:border-ink-800 dark:bg-ink-900"
+          >
+            {
+              nav.map((item) => (
+                <a
+                  href={item.href}
+                  aria-current={isCurrent(item.href) ? 'page' : undefined}
+                  class:list={[
+                    'press block rounded-[var(--radius-control)] px-3 py-2.5 text-sm text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-white',
+                    isCurrent(item.href) && 'bg-ink-100 font-semibold text-ink-900 dark:bg-ink-800 dark:text-white',
+                  ]}
+                >
+                  {item.label}
+                </a>
+              ))
+            }
+            <a
+              href="/about/"
+              class="press block rounded-[var(--radius-control)] px-3 py-2.5 text-sm text-ink-600 hover:bg-ink-100 hover:text-ink-900 dark:text-ink-300 dark:hover:bg-ink-800 dark:hover:text-white"
+            >
+              About
+            </a>
+          </nav>
+        </details>
+      </div>
+    </header>
+
+    <main id="main">
+      <slot />
+    </main>
+
+    <footer class="mt-16 border-t border-ink-200 dark:border-ink-800">
+      <div class="mx-auto max-w-6xl px-4 py-12">
+        <div class="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <p class="text-ink-900 dark:text-ink-50">
+              <Wordmark />
+            </p>
+            <p class="mt-4 max-w-[36ch] text-sm leading-6 text-ink-500 dark:text-ink-400">
+              Size a portable power station from the devices you run. Specs are checked against
+              manufacturer pages, not a marketing tier.
+            </p>
+            <p class="mt-4 text-sm">
+              <!--email_off--><a class="text-ink-500 hover:text-ink-900 dark:text-ink-400 dark:hover:text-white" href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a><!--/email_off-->
+            </p>
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">Brands</p>
+            <ul class="mt-4 space-y-3 text-sm">
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/brands/ecoflow/">EcoFlow</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/brands/jackery/">Jackery</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/brands/bluetti/">BLUETTI</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/brands/anker-solix/">Anker SOLIX</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">Explore</p>
+            <ul class="mt-4 space-y-3 text-sm">
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/calculator/">Calculator</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/scenarios/cpap-overnight/">CPAP overnight</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/scenarios/fridge-outage/">Fridge outage</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/guides/solar-generator-sizing/">Solar charging</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/guides/">Sizing guides</a></li>
+            </ul>
+          </div>
+
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">Company</p>
+            <ul class="mt-4 space-y-3 text-sm">
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/about/">About</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/methodology/">Methodology</a></li>
+              <li><!--email_off--><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href={`mailto:${site.contactEmail}`}>Contact</a><!--/email_off--></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/disclosure/">Affiliate disclosure</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/privacy/">Privacy policy</a></li>
+              <li><a class="text-ink-600 hover:text-ink-900 dark:text-ink-300 dark:hover:text-white" href="/terms/">Terms of use</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-ink-200 dark:border-ink-800">
+        <div class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-5 text-xs text-ink-500 dark:text-ink-400 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            {'\u00a9'} 2026 {site.name}.
+            {site.affiliateLive ? ' Some links may be affiliate links.' : ''}
+            {site.amazonAssociate && (
+              <span class="mt-1 block">As an Amazon Associate we earn from qualifying purchases.</span>
+            )}
+          </p>
+          <p class="flex flex-wrap gap-x-5 gap-y-2">
+            <a class="hover:text-ink-900 dark:hover:text-white" href="/disclosure/">Affiliate disclosure</a>
+            <a class="hover:text-ink-900 dark:hover:text-white" href="/privacy/">Privacy policy</a>
+            <a class="hover:text-ink-900 dark:hover:text-white" href="/terms/">Terms</a>
+            <button id="analytics-settings" type="button" hidden class="cursor-pointer underline hover:text-ink-900 dark:hover:text-white">Analytics settings</button>
+          </p>
+        </div>
+      </div>
+    </footer>
+    <section id="analytics-consent" hidden aria-labelledby="analytics-consent-title" class="fixed inset-x-4 bottom-4 z-50 mx-auto max-w-xl rounded-[var(--radius-card)] border border-ink-300 bg-white p-5 shadow-xl dark:border-ink-700 dark:bg-ink-900">
+      <h2 id="analytics-consent-title" class="text-lg font-semibold">Optional analytics</h2>
+      <p class="mt-2 text-sm text-ink-600 dark:text-ink-300">
+        May we load Google Analytics and its cookies to understand site usage? It stays off unless
+        you accept. The calculator works either way. Change your choice in Analytics settings.{' '}
+        <a href="/privacy/" class="underline">Privacy policy</a>
+      </p>
+      <div class="mt-4 flex flex-wrap gap-3">
+        <button id="analytics-reject" type="button" class="cursor-pointer rounded-[var(--radius-control)] border border-ink-400 px-4 py-2 text-sm font-semibold">Reject analytics</button>
+        <button id="analytics-accept" type="button" class="cursor-pointer rounded-[var(--radius-control)] border border-ink-400 px-4 py-2 text-sm font-semibold">Accept analytics</button>
+      </div>
+    </section>
+  </body>
+</html>

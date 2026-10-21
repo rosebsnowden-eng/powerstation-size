@@ -1,0 +1,194 @@
+---
+import Base from '../layouts/Base.astro';
+import Calculator from '../components/Calculator.astro';
+import { site } from '../data/site.ts';
+
+// FAQ schema only. Reviews and medical-device schema are prohibited by
+// docs/04-compliance.md gate B.
+const stages = [
+  {
+    title: 'You have not bought one yet',
+    body: 'Add the devices. The first line of the result says whether you are short on capacity, continuous output, or startup surge. A single watt-hour number hides which of those fails first.',
+  },
+  {
+    title: 'You already own one',
+    body: 'Switch to runtime. You get two figures: hours with each device duty cycle applied, and hours if everything runs at once. A fridge at 35 percent duty is roughly triple the worst case.',
+  },
+  {
+    title: 'You need a fridge through an outage',
+    body: 'The compressor, not the daily energy, is the usual limit. Set the fridge surge on its own row. A boost rating labelled X-Boost, Power Lifting, or SurgePad is not treated as clearance to start that motor.',
+  },
+  {
+    title: 'You need a CPAP overnight',
+    body: 'Humidifier off and humidifier on are separate devices. Combining them into one default is wrong by enough watt-hours to change the size you buy. This is an estimate, not medical advice.',
+  },
+];
+
+const worked = [
+  ['CPAP, humidifier off, 8 h', '45 W', '100%', '360 Wh', 'Not modelled'],
+  ['CPAP, humidifier on, 8 h', '80 W', '100%', '640 Wh', 'Not modelled'],
+  ['Full-size fridge, 8 h', '150 W', '35%', '420 Wh', '1,200 W'],
+  ['Fridge plus router, lights, phone', '183 W at once', 'mixed', '585 Wh', '1,200 W'],
+];
+
+const faq = [
+  {
+    q: 'How do I calculate what size portable power station I need?',
+    a: 'Multiply each device wattage by the hours you need it, then by how often it actually draws power. Sum those figures for daily watt-hours, divide by inverter efficiency, and add a reserve margin of 15 to 35 percent. Then check the highest startup surge against inverter surge, not against a resistive boost rating.',
+  },
+  {
+    q: 'Why check continuous and peak output separately?',
+    a: 'Devices with motors or compressors draw a brief surge when they start. A station can hold enough energy for your load yet still fail to start a fridge if its inverter surge is too low.',
+  },
+  {
+    q: 'Does a CPAP with a humidifier use more power?',
+    a: 'Yes. A heated humidifier and heated tube can roughly double the draw compared with a machine running dry, so they should be estimated separately.',
+  },
+  {
+    q: 'How long will a power station last?',
+    a: 'Divide usable capacity by the duty-weighted watts for an average, and by the sum of nameplate watts for the worst case. Usable capacity here is 85 percent of the nameplate. Both numbers are estimates.',
+  },
+];
+
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faq.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+
+const howToSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: 'How to size a portable power station',
+  description: 'Size capacity and output from the devices you run, then check startup surge separately.',
+  totalTime: 'PT3M',
+  step: [
+    {
+      '@type': 'HowToStep',
+      position: 1,
+      name: 'List each device',
+      text: 'Add each device with its watts, hours, and duty cycle. Choose either the complete CPAP humidifier-on or humidifier-off configuration, not both for the same machine.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 2,
+      name: 'Read the binding limit',
+      text: 'The result names whether capacity, continuous output, or startup surge fails first.',
+    },
+    {
+      '@type': 'HowToStep',
+      position: 3,
+      name: 'Match a verified model or compare two',
+      text: 'Use a model whose inverter surge covers a motor. Ignore resistive boost ratings for that check.',
+    },
+  ],
+};
+
+const appSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: `${site.name} portable power station calculator`,
+  applicationCategory: 'UtilityApplication',
+  operatingSystem: 'Web',
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  description: 'Size a portable power station from device watts, duty cycle, and startup surge. Runtime and two-model comparison use the same formula.',
+};
+---
+
+<Base
+  title="Power station calculator"
+  description="Size watt-hours and output from a device list. Duty cycle, inverter loss, and startup surge are checked separately from resistive boost ratings."
+>
+  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(howToSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(appSchema)} />
+
+  <section class="mx-auto max-w-6xl px-4 pb-4 pt-8">
+    <h1 class="display text-3xl font-medium tracking-tight md:text-4xl">
+      Portable power station size calculator
+    </h1>
+    <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Build your load from real devices. The result names which limit fails first: watt-hours, continuous watts, or startup surge.
+    </p>
+  </section>
+
+  <div class="mx-auto max-w-7xl px-4 pb-10">
+    <Calculator />
+  </div>
+
+  <section class="border-t border-ink-200 bg-white dark:border-ink-800 dark:bg-ink-900">
+    <div class="mx-auto max-w-6xl px-4 py-12">
+      <h2 class="text-2xl font-semibold tracking-tight">Which question are you actually asking?</h2>
+      <div class="mt-8 grid gap-8 md:grid-cols-2">
+        {
+          stages.map((stage) => (
+            <div>
+              <h3 class="text-base font-semibold">{stage.title}</h3>
+              <p class="mt-2 max-w-[58ch] text-sm text-ink-600 dark:text-ink-300">{stage.body}</p>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-4 py-12">
+    <h2 class="text-2xl font-semibold tracking-tight">Worked loads, before inverter loss</h2>
+    <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+      These rows use the device library defaults. The calculator then divides by inverter efficiency
+      (85 percent unless you change it) and multiplies by the reserve (20 percent unless you change it).
+      A 585 Wh day becomes about 826 Wh of nameplate capacity.
+    </p>
+    <div class="mt-6 overflow-x-auto">
+      <table class="w-full min-w-[40rem] border-collapse text-left text-sm">
+        <thead>
+          <tr class="border-b border-ink-200 dark:border-ink-700">
+            <th class="py-2 pr-4 font-semibold">Load</th>
+            <th class="py-2 pr-4 font-semibold">Watts</th>
+            <th class="py-2 pr-4 font-semibold">Duty</th>
+            <th class="py-2 pr-4 font-semibold">Daily energy</th>
+            <th class="py-2 font-semibold">Startup surge</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            worked.map((row) => (
+              <tr class="border-b border-ink-100 dark:border-ink-800">
+                {row.map((cell) => (
+                  <td class="tabular py-2 pr-4">{cell}</td>
+                ))}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="mt-4 max-w-[68ch] text-sm text-ink-500 dark:text-ink-400">
+      Device watts are published ranges, not measurements of your unit. The method is on the
+      <a href="/methodology/" class="underline">methodology</a> page. Browse
+      <a href="/stations/" class="underline">verified models</a>
+      or the
+      <a href="/guides/cpap-backup-power/" class="underline">CPAP backup guide</a>.
+    </p>
+  </section>
+
+  <section class="border-t border-ink-200 dark:border-ink-800">
+    <div class="mx-auto max-w-6xl px-4 py-12">
+      <h2 class="text-2xl font-semibold tracking-tight">Questions the watt-hour figure does not answer</h2>
+      <div class="mt-6 max-w-3xl">
+        {
+          faq.map((item) => (
+            <details class="border-b border-ink-200 py-4 dark:border-ink-800">
+              <summary class="cursor-pointer text-base font-medium">{item.q}</summary>
+              <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">{item.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+</Base>

@@ -1,0 +1,91 @@
+---
+/**
+ * Comparison table.
+ *
+ * Note on scope: taste-skill section 13 excludes data tables from its remit,
+ * so this component is a plain, honest table rather than an application of that
+ * skill. It follows the skill's styling constraints where they apply: no
+ * border on every row (9.F), mono numerals (density 5), one accent color.
+ */
+interface Station {
+  id: string;
+  brand: string;
+  model: string;
+  capacity_wh: number;
+  output_continuous_w: number;
+  output_peak_w: number;
+  weight_lbs: number | null;
+  price_usd_list: number | null;
+  battery_chemistry: string;
+  source_url: string;
+  verified_at: string;
+  peak_is_surge?: boolean;
+}
+
+interface Props {
+  stations: Station[];
+}
+
+const { stations } = Astro.props;
+const money = (n: number) => `$${n.toLocaleString('en-US')}`;
+const showPrice = stations.some((s) => s.price_usd_list != null);
+---
+
+<div class="overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+  <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+    <caption class="sr-only">Verified power station specifications</caption>
+    <thead>
+      <tr class="border-b border-ink-200 dark:border-ink-800">
+        <th scope="col" class="px-4 py-3 font-semibold">Model</th>
+        <th scope="col" class="px-4 py-3 font-semibold">Capacity</th>
+        <th scope="col" class="px-4 py-3 font-semibold">Output</th>
+        <th scope="col" class="px-4 py-3 font-semibold">Peak</th>
+        <th scope="col" class="hidden px-4 py-3 font-semibold sm:table-cell">Weight</th>
+        <th scope="col" class="hidden px-4 py-3 font-semibold sm:table-cell">Chemistry</th>
+        {showPrice ? <th scope="col" class="px-4 py-3 font-semibold">List price</th> : null}
+      </tr>
+    </thead>
+    <tbody>
+      {
+        stations.map((s) => (
+          <tr class="border-b border-ink-100 last:border-0 hover:bg-ink-50 dark:border-ink-800/60 dark:hover:bg-ink-800/40">
+            <th scope="row" class="px-4 py-3 font-medium">
+              <a href={`/stations/${s.id}/`} class="flex items-center gap-3 hover:text-moss-700 dark:hover:text-moss-300">
+                <img
+                  src={`/images/stations/${s.id}.webp`}
+                  alt=""
+                  width="56"
+                  height="42"
+                  class="h-10 w-14 shrink-0 object-contain"
+                  loading="lazy"
+                />
+                <span>
+                  {s.brand} {s.model}
+                </span>
+              </a>
+            </th>
+            <td class="tabular px-4 py-3">{s.capacity_wh.toLocaleString('en-US')} Wh</td>
+            <td class="tabular px-4 py-3">{s.output_continuous_w.toLocaleString('en-US')} W</td>
+            <td class="tabular px-4 py-3">
+              {s.output_peak_w.toLocaleString('en-US')} W
+              {s.peak_is_surge === false ? <span class="block text-xs text-ink-500">boost, not surge</span> : null}
+            </td>
+            <td class="tabular hidden px-4 py-3 sm:table-cell">
+              {s.weight_lbs ? `${s.weight_lbs} lb` : 'n/a'}
+            </td>
+            <td class="hidden px-4 py-3 sm:table-cell">{s.battery_chemistry}</td>
+            {showPrice ? (
+              <td class="tabular px-4 py-3">
+                {s.price_usd_list ? money(s.price_usd_list) : 'n/a'}
+              </td>
+            ) : null}
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+</div>
+<p class="mt-2 text-xs text-ink-500 dark:text-ink-400">
+  Specifications taken from manufacturer pages. A peak marked "boost, not surge" is a resistive-load
+  rating and is not used to clear a motor start. Each model page lists its source URL and verification date.
+</p>

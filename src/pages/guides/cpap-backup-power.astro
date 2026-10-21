@@ -1,0 +1,310 @@
+---
+import Base from '../../layouts/Base.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import db from '../../data/power-stations.json';
+import { site } from '../../data/site.ts';
+import { getScenario, analyzeScenario, scenarioQuery } from '../../data/scenarios.ts';
+import { amazonUrlFor, isCurrent, toStationSpec } from '../../lib/catalog.ts';
+import { runtimeFor } from '../../lib/calculate.ts';
+
+/**
+ * CPAP decision page.
+ *
+ * Same URL as the original sizing guide. This is not a blog post and not a
+ * medical review. Picks are the smallest verified models that cover the
+ * estimated humidifier-on night, plus one smaller dry-only option, each with
+ * an Amazon button. Language stays inside docs/04-compliance.md gate B.
+ */
+
+const catalog = db.stations.filter(isCurrent);
+const amazonTag = (db.meta as { amazon_tag?: string }).amazon_tag ?? '';
+const dry = getScenario('cpap-overnight');
+const wet = getScenario('cpap-night-humidifier');
+if (!dry || !wet) throw new Error('CPAP scenarios missing');
+const dryAnalysis = analyzeScenario(dry, catalog);
+const wetAnalysis = analyzeScenario(wet, catalog);
+const n = (value: number) => Math.round(value).toLocaleString('en-US');
+const hours = (h: number) => (h >= 10 ? `${h.toFixed(1)} h` : `${h.toFixed(1)} h`);
+
+const fullById = new Map(catalog.map((s) => [s.id, s]));
+const wetEligible = wetAnalysis.match.eligible
+  .map((entry) => fullById.get(entry.station.id))
+  .filter((s): s is (typeof catalog)[number] => s !== undefined && s.availability !== 'out_of_stock');
+const dryEligible = dryAnalysis.match.eligible
+  .map((entry) => fullById.get(entry.station.id))
+  .filter((s): s is (typeof catalog)[number] => s !== undefined && s.availability !== 'out_of_stock');
+
+const pickIds = ['bluetti-elite-100-v2', 'anker-solix-c1000', 'jackery-explorer-1000-v2'] as const;
+const picks = pickIds
+  .map((id) => {
+    const station = wetEligible.find((s) => s.id === id) ?? dryEligible.find((s) => s.id === id);
+    if (!station) return null;
+    const dryRun = runtimeFor(toStationSpec(station), dryAnalysis.rows);
+    const wetRun = runtimeFor(toStationSpec(station), wetAnalysis.rows);
+    return {
+      station,
+      amazon: amazonUrlFor(station, amazonTag),
+      dryHours: dryRun.averageHours,
+      wetHours: wetRun.averageHours,
+    };
+  })
+  .filter((p): p is NonNullable<typeof p> => p !== null);
+
+if (picks.length !== 3) {
+  throw new Error(`CPAP decision page expected 3 picks, got ${picks.length}`);
+}
+
+const why = [
+  'Covers the estimated humidifier-on night with spare capacity, LiFePO4, and a current Amazon listing.',
+  'Same estimated night, listed in stock in the catalog, with a verified 1,056 Wh pack.',
+  'A lighter ~1 kWh class option for travel. Confirm weight on the manufacturer page before you buy.',
+] as const;
+const labels = ['Best overall for this estimated load', 'In-stock 1 kWh class', 'Lighter travel option'] as const;
+
+const origin = Astro.site ?? site.url;
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'Battery backup for a CPAP: how to size it, and three stations that cover the estimate',
+  description:
+    'Estimated watt-hours for a CPAP night with the humidifier off or on, and three verified portable power stations that cover the heated-humidifier load on paper.',
+  url: new URL('/guides/cpap-backup-power/', origin).href,
+  publisher: { '@type': 'Organization', name: site.name },
+};
+---
+
+<Base
+  title="Battery backup for a CPAP"
+  description="How to estimate CPAP backup power with the humidifier off or on, and three verified portable power stations that cover the heated-humidifier night on paper. Not medical advice."
+  canonicalPath="/guides/cpap-backup-power/"
+>
+  <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+
+  <article class="mx-auto max-w-3xl px-4 py-16">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-moss-700 dark:text-moss-300">CPAP backup</p>
+    <h1 class="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+      Battery backup for a CPAP: size the night, then pick a station
+    </h1>
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      This page estimates how much energy a CPAP setup draws so you can compare portable power
+      stations. It is not medical advice. A portable power station is not a medical device, and it is
+      not a substitute for the battery your equipment manufacturer specifies.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-sm text-ink-500 dark:text-ink-400">
+      Runtime hours below are calculated from published station specs and engineering ranges for the
+      machine, not from a lab test of your CPAP. Confirm compatibility with your equipment provider
+      before you rely on any battery.
+    </p>
+
+    <section class="mt-10 rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+      <h2 class="text-lg font-semibold tracking-tight">The two nights this page sizes</h2>
+      <dl class="mt-4 grid gap-4 sm:grid-cols-2">
+        <div>
+          <dt class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-500">Humidifier off</dt>
+          <dd class="tabular mt-1 text-2xl font-semibold">{n(dryAnalysis.plan.recommendedWh)} Wh</dd>
+          <p class="mt-1 text-xs text-ink-500">
+            About 45 W for 8 hours, plus a phone charge, after inverter loss and reserve.
+          </p>
+        </div>
+        <div>
+          <dt class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-500">Humidifier on</dt>
+          <dd class="tabular mt-1 text-2xl font-semibold">{n(wetAnalysis.plan.recommendedWh)} Wh</dd>
+          <p class="mt-1 text-xs text-ink-500">
+            About 80 W for 8 hours, plus a phone charge. This is the number that usually decides the
+            purchase.
+          </p>
+        </div>
+      </dl>
+      <p class="mt-4 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Heating is the largest variable. The
+        <a class="text-moss-700 underline dark:text-moss-300" href="/calculator/">calculator</a>
+        keeps those as two separate devices. Only change humidifier settings if your equipment
+        provider or clinician says that is appropriate.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Three stations that cover the heated-humidifier estimate</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Ranked for this estimated load, not as a medical recommendation. Each one has enough
+        nameplate watt-hours and continuous watts for the humidifier-on night after losses. Hours
+        are planning estimates. Affiliate links may earn a commission.
+      </p>
+
+      <ol class="mt-8 space-y-8">
+        {
+          picks.map((pick, i) => (
+            <li class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-moss-700 dark:text-moss-300">
+                #{i + 1} · {labels[i]}
+              </p>
+              <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+                <img
+                  src={`/images/stations/${pick.station.id}.webp`}
+                  alt={`${pick.station.brand} ${pick.station.model}`}
+                  width="160"
+                  height="120"
+                  class="h-28 w-36 shrink-0 object-contain"
+                />
+                <div class="min-w-0 flex-1">
+                  <h3 class="text-lg font-semibold tracking-tight">
+                    {pick.station.brand} {pick.station.model}
+                  </h3>
+                  <p class="mt-2 max-w-[62ch] text-sm text-ink-600 dark:text-ink-300">{why[i]}</p>
+                  <dl class="mt-4 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+                    <div>
+                      <dt class="text-xs text-ink-500">Capacity</dt>
+                      <dd class="tabular font-semibold">{n(pick.station.capacity_wh)} Wh</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-ink-500">Continuous</dt>
+                      <dd class="tabular font-semibold">{n(pick.station.output_continuous_w)} W</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-ink-500">Dry night (est.)</dt>
+                      <dd class="tabular font-semibold">{hours(pick.dryHours)}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-ink-500">Heated night (est.)</dt>
+                      <dd class="tabular font-semibold">{hours(pick.wetHours)}</dd>
+                    </div>
+                  </dl>
+                  <div class="mt-5 flex flex-wrap gap-3">
+                    {pick.amazon ? (
+                      <a
+                        href={pick.amazon}
+                        rel="sponsored nofollow noopener"
+                        target="_blank"
+                        class="press inline-flex rounded-[var(--radius-control)] bg-moss-700 px-5 py-3 text-sm font-semibold text-white hover:bg-moss-600"
+                      >
+                        Check price on Amazon
+                      </a>
+                    ) : null}
+                    <a
+                      href={`/stations/${pick.station.id}/`}
+                      class="press inline-flex rounded-[var(--radius-control)] border border-ink-200 px-5 py-3 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+                    >
+                      Full specs
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Side-by-side, same estimated loads</h2>
+      <div class="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+        <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+          <caption class="sr-only">CPAP pick comparison</caption>
+          <thead>
+            <tr class="border-b border-ink-200 dark:border-ink-800">
+              <th scope="col" class="px-4 py-3 font-semibold">Station</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Wh</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Dry night</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Heated night</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Weight</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              picks.map((pick) => (
+                <tr class="border-b border-ink-100 dark:border-ink-800/60">
+                  <th scope="row" class="px-4 py-3 font-medium">
+                    {pick.station.brand} {pick.station.model}
+                  </th>
+                  <td class="tabular px-4 py-3">{n(pick.station.capacity_wh)}</td>
+                  <td class="tabular px-4 py-3">{hours(pick.dryHours)}</td>
+                  <td class="tabular px-4 py-3">{hours(pick.wetHours)}</td>
+                  <td class="tabular px-4 py-3">
+                    {pick.station.weight_lbs ? `${pick.station.weight_lbs} lb` : 'See spec page'}
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <p class="mt-6 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+      C1000 and Elite 100 V2 sit in the same capacity class. The peak rating is the difference:
+      <a href="/guides/anker-solix-c1000-vs-bluetti-elite-100-v2/" class="text-moss-700 underline dark:text-moss-300">
+        C1000 vs Elite 100 V2
+      </a>.
+    </p>
+
+    <h2 class="mt-12 text-xl font-semibold tracking-tight">Heating changes the energy estimate</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Most CPAP machines draw somewhere around 30 to 60 W at typical pressure settings with the
+      humidifier off. Turning on a heated humidifier, and especially a heated tube, can roughly
+      double that figure. Two people with the same machine can need meaningfully different capacity
+      depending on that setting.
+    </p>
+    <ul class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">
+        Dry night in this catalog: about {n(dryAnalysis.plan.recommendedWh)} Wh to shop, after
+        inverter loss and reserve.
+      </li>
+      <li class="max-w-[68ch]">
+        Heated night: about {n(wetAnalysis.plan.recommendedWh)} Wh. Buy against this number unless
+        your provider says you should run dry.
+      </li>
+      <li class="max-w-[68ch]">Cold rooms reduce usable battery capacity. Keep a reserve.</li>
+    </ul>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">What a power station is not</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Equipment manufacturers sell battery modules intended for their own machines. A general-purpose
+      power station is a different product. Some machines will run from one; others behave badly with
+      a modified sine wave or with an inverter that never fully sleeps.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Before you depend on any battery for therapy, confirm three things with your equipment
+      provider: that your specific model tolerates the power source, whether your humidifier should
+      be disabled to extend runtime, and what the manufacturer recommends for outages.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Open the same loads in the calculator</h2>
+    <p class="mt-4 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+      <a
+        href={`/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(dry))}&days=1`}
+        class="text-moss-700 underline dark:text-moss-300"
+      >
+        Humidifier-off load
+      </a>
+      {' · '}
+      <a
+        href={`/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(wet))}&days=1`}
+        class="text-moss-700 underline dark:text-moss-300"
+      >
+        Humidifier-on load
+      </a>
+      {' · '}
+      <a href="/scenarios/cpap-overnight/" class="text-moss-700 underline dark:text-moss-300">dry scenario</a>
+      {' · '}
+      <a href="/scenarios/cpap-night-humidifier/" class="text-moss-700 underline dark:text-moss-300">
+        heated scenario
+      </a>
+    </p>
+    <p class="mt-4 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+      {wetAnalysis.match.eligible.length} verified models cover the heated estimate on paper;
+      {dryAnalysis.match.eligible.length} cover the dry estimate. The three above are the ones this
+      page would actually send a shopper to check.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Testing before you need it</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Confirm compatibility and a test procedure with your equipment provider before testing. Keep
+      your prescribed power supply and backup plan available. Do not interrupt prescribed therapy or
+      run a therapy device until its battery fails to measure runtime.
+    </p>
+
+    <div class="mt-10">
+      <Disclaimer medical />
+    </div>
+  </article>
+</Base>

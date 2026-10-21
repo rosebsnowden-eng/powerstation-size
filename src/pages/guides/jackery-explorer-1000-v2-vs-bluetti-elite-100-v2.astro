@@ -1,0 +1,284 @@
+---
+/**
+ * Second vs page. Both publish inverter surge. The split is weight, continuous
+ * watts, and solar input — not boost versus surge.
+ */
+import Base from '../../layouts/Base.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import db from '../../data/power-stations.json';
+import { site } from '../../data/site.ts';
+import { amazonUrlFor, isCurrent, toStationSpec } from '../../lib/catalog.ts';
+import { getScenario, analyzeScenario, scenarioQuery } from '../../data/scenarios.ts';
+import { runtimeFor } from '../../lib/calculate.ts';
+
+const catalog = db.stations.filter(isCurrent);
+const amazonTag = (db.meta as { amazon_tag?: string }).amazon_tag ?? '';
+const left = catalog.find((s) => s.id === 'jackery-explorer-1000-v2');
+const right = catalog.find((s) => s.id === 'bluetti-elite-100-v2');
+if (!left || !right) throw new Error('vs page missing Explorer 1000 v2 or Elite 100 V2');
+
+const loads = [
+  { id: 'cpap-overnight', label: 'CPAP night, humidifier off' },
+  { id: 'cpap-night-humidifier', label: 'CPAP night, humidifier on' },
+  { id: 'camping-day', label: 'Camping day (12V fridge)' },
+  { id: 'fridge-outage', label: 'Home fridge outage' },
+] as const;
+
+function constraintLabel(constraint: string | null): string {
+  if (constraint === 'surge') return 'Startup blocked';
+  if (constraint === 'surge_unverified') return 'Boost only, not checked';
+  if (constraint === 'continuous') return 'Continuous output short';
+  if (constraint === 'capacity') return 'Capacity short';
+  return 'Clears this load';
+}
+
+const rows = loads.map((load) => {
+  const scenario = getScenario(load.id);
+  if (!scenario) throw new Error(`missing scenario ${load.id}`);
+  const analysis = analyzeScenario(scenario, catalog);
+  const a = runtimeFor(toStationSpec(left), analysis.rows);
+  const b = runtimeFor(toStationSpec(right), analysis.rows);
+  return {
+    ...load,
+    needWh: analysis.plan.recommendedWh,
+    surgeW: analysis.sizing.peakSurgeW,
+    left: a,
+    right: b,
+    calcHref: `/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(scenario))}&days=1`,
+  };
+});
+
+const n = (value: number) => Math.round(value).toLocaleString('en-US');
+const hours = (h: number) => `${h.toFixed(1)} h`;
+const leftAmazon = amazonUrlFor(left, amazonTag);
+const rightAmazon = amazonUrlFor(right, amazonTag);
+
+const origin = Astro.site ?? site.url;
+const path = '/guides/jackery-explorer-1000-v2-vs-bluetti-elite-100-v2/';
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'Jackery Explorer 1000 v2 vs BLUETTI Elite 100 V2',
+  description:
+    'Two ~1 kWh LiFePO4 stations that both publish inverter surge. Jackery is lighter with 1,500 W continuous. BLUETTI has 1,800 W continuous and 1,000 W solar input. Hours are calculator estimates.',
+  url: new URL(path, origin).href,
+  publisher: { '@type': 'Organization', name: site.name },
+  author: { '@type': 'Person', name: site.publisherName },
+};
+---
+
+<Base
+  title="Jackery Explorer 1000 v2 vs BLUETTI Elite 100 V2"
+  description="Two ~1 kWh stations that both publish inverter surge. Jackery: 23.8 lb and 1,500 W. BLUETTI: 1,800 W continuous and 1,000 W solar input. Estimated hours for CPAP, camping, and a fridge."
+  canonicalPath={path}
+>
+  <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+
+  <article class="mx-auto max-w-3xl px-4 py-16">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-moss-700 dark:text-moss-300">Comparison</p>
+    <h1 class="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+      Jackery Explorer 1000 v2 vs BLUETTI Elite 100 V2
+    </h1>
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Both are ~1 kWh LiFePO4 packs that publish a true inverter surge, so this catalog will check
+      them against a fridge start. Capacity is close (1,070 Wh vs 1,024 Wh). The purchase splits on
+      carry weight, continuous watts, and how much solar they accept.
+    </p>
+    <p class="mt-3 max-w-[68ch] text-sm text-ink-500 dark:text-ink-400">
+      Specs were read from manufacturer pages ({left.verified_at} and {right.verified_at}). Hours
+      are calculator estimates, not lab tests. Affiliate links may earn a commission.
+    </p>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">The differences that decide it</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Jackery publishes 23.8 lb and 1,500 W continuous, with 400 W solar input. BLUETTI publishes
+        1,800 W continuous, 3,600 W surge, and 1,000 W solar input; this catalog has no verified
+        weight for Elite 100 V2, so weight is not used to rank it. On the four loads below, both
+        clear capacity, continuous output, and surge.
+      </p>
+    </section>
+
+    <section class="mt-10 grid gap-4 sm:grid-cols-2">
+      {
+        [
+          { station: left, amazon: leftAmazon, badge: 'Lighter carry, 1,500 W continuous' },
+          { station: right, amazon: rightAmazon, badge: 'Higher continuous and solar input' },
+        ].map((col) => (
+          <div class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-moss-700 dark:text-moss-300">
+              {col.badge}
+            </p>
+            <img
+              src={`/images/stations/${col.station.id}.webp`}
+              alt={`${col.station.brand} ${col.station.model}`}
+              width="160"
+              height="120"
+              class="mx-auto mt-4 h-24 w-32 object-contain"
+            />
+            <h3 class="mt-3 text-lg font-semibold">
+              {col.station.brand} {col.station.model}
+            </h3>
+            <p class="tabular mt-1 text-sm text-ink-500">
+              {n(col.station.capacity_wh)} Wh · {n(col.station.output_continuous_w)} W
+            </p>
+            <div class="mt-4 flex flex-col gap-2">
+              {col.amazon ? (
+                <a
+                  href={col.amazon}
+                  rel="sponsored nofollow noopener"
+                  target="_blank"
+                  class="press inline-flex justify-center rounded-[var(--radius-control)] bg-moss-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss-600"
+                >
+                  Check price on Amazon
+                </a>
+              ) : null}
+              <a
+                href={`/stations/${col.station.id}/`}
+                class="press inline-flex justify-center rounded-[var(--radius-control)] border border-ink-200 px-4 py-2.5 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+              >
+                Full specs
+              </a>
+            </div>
+          </div>
+        ))
+      }
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Manufacturer specs, side by side</h2>
+      <div class="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+        <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+          <caption class="sr-only">Explorer 1000 v2 versus Elite 100 V2 specifications</caption>
+          <thead>
+            <tr class="border-b border-ink-200 dark:border-ink-800">
+              <th scope="col" class="px-4 py-3 font-semibold">Spec</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Explorer 1000 v2</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Elite 100 V2</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">Capacity</th>
+              <td class="tabular px-4 py-3">{n(left.capacity_wh)} Wh</td>
+              <td class="tabular px-4 py-3">{n(right.capacity_wh)} Wh</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">Continuous output</th>
+              <td class="tabular px-4 py-3">{n(left.output_continuous_w)} W</td>
+              <td class="tabular px-4 py-3">{n(right.output_continuous_w)} W</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">Peak</th>
+              <td class="tabular px-4 py-3">{n(left.output_peak_w)} W inverter surge</td>
+              <td class="tabular px-4 py-3">{n(right.output_peak_w)} W inverter surge</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">Chemistry</th>
+              <td class="px-4 py-3">{left.battery_chemistry}</td>
+              <td class="px-4 py-3">{right.battery_chemistry}</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">Cycle life</th>
+              <td class="tabular px-4 py-3">{left.cycles ? `${n(left.cycles)} cycles` : 'See spec page'}</td>
+              <td class="tabular px-4 py-3">{right.cycles ? `${n(right.cycles)} cycles` : 'See spec page'}</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">Solar input max</th>
+              <td class="tabular px-4 py-3">{left.solar_input_max_w ? `${n(left.solar_input_max_w)} W` : 'See spec page'}</td>
+              <td class="tabular px-4 py-3">{right.solar_input_max_w ? `${n(right.solar_input_max_w)} W` : 'See spec page'}</td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3 font-medium">Weight</th>
+              <td class="tabular px-4 py-3">{left.weight_lbs ? `${left.weight_lbs} lb` : 'See spec page'}</td>
+              <td class="tabular px-4 py-3">{right.weight_lbs ? `${right.weight_lbs} lb` : 'Not on the source page'}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-3 text-xs text-ink-500">
+        Sources:
+        <a href={left.source_url} rel="nofollow noopener" class="underline" target="_blank">Jackery Explorer 1000 v2</a>
+        {' · '}
+        <a href={right.source_url} rel="nofollow noopener" class="underline" target="_blank">BLUETTI Elite 100 V2</a>
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Same calculator loads</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Hours use 85 percent usable capacity. Both publish inverter surge, so fridge starts are
+        checked. Open any row in the calculator to change watts or hours.
+      </p>
+      <div class="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+        <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+          <thead>
+            <tr class="border-b border-ink-200 dark:border-ink-800">
+              <th scope="col" class="px-4 py-3 font-semibold">Load</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Explorer 1000 v2</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Elite 100 V2</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              rows.map((row) => (
+                <tr class="border-b border-ink-100 dark:border-ink-800/60">
+                  <th scope="row" class="px-4 py-3 font-medium">
+                    <a href={row.calcHref} class="text-moss-700 underline dark:text-moss-300">
+                      {row.label}
+                    </a>
+                    <span class="mt-1 block text-xs font-normal text-ink-500">
+                      Shop about {n(row.needWh)} Wh
+                      {row.surgeW ? ` · start ${n(row.surgeW)} W` : ''}
+                    </span>
+                  </th>
+                  <td class="px-4 py-3">
+                    <span class="block font-semibold">{constraintLabel(row.left.bindingConstraint)}</span>
+                    <span class="tabular text-xs text-ink-500">{hours(row.left.averageHours)} est.</span>
+                  </td>
+                  <td class="px-4 py-3">
+                    <span class="block font-semibold">{constraintLabel(row.right.bindingConstraint)}</span>
+                    <span class="tabular text-xs text-ink-500">{hours(row.right.averageHours)} est.</span>
+                  </td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <h2 class="mt-12 text-xl font-semibold tracking-tight">Who should buy which</h2>
+    <ul class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">
+        <strong class="text-ink-900 dark:text-ink-100">Explorer 1000 v2</strong> if you carry the
+        pack. 23.8 lb is published. 1,500 W continuous still clears the camping-day and fridge
+        running watts in this catalog. Solar tops out at 400 W.
+      </li>
+      <li class="max-w-[68ch]">
+        <strong class="text-ink-900 dark:text-ink-100">Elite 100 V2</strong> if you want more
+        continuous headroom (1,800 W) and more solar input (1,000 W). Weight is not on the source
+        page used here, so do not pick it as the lighter option.
+      </li>
+    </ul>
+    <p class="mt-4 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+      Against Anker C1000, the split is different: C1000's peak is SurgePad.
+      <a href="/guides/anker-solix-c1000-vs-bluetti-elite-100-v2/" class="text-moss-700 underline dark:text-moss-300">
+        C1000 vs Elite 100 V2
+      </a>
+      and
+      <a href="/guides/jackery-explorer-1000-v2-vs-anker-solix-c1000/" class="text-moss-700 underline dark:text-moss-300">
+        1000 v2 vs C1000
+      </a>
+      cover that. Both of these Jackery and BLUETTI units appear on the
+      <a href="/guides/camping-power-station/" class="text-moss-700 underline dark:text-moss-300">camping</a>
+      and
+      <a href="/guides/cpap-backup-power/" class="text-moss-700 underline dark:text-moss-300">CPAP</a>
+      decision pages.
+    </p>
+
+    <div class="mt-10">
+      <Disclaimer medical electrical />
+    </div>
+  </article>
+</Base>

@@ -1,0 +1,58 @@
+# PowerStation Size
+
+> Free calculator and manufacturer-spec library for portable power stations, published by Chen Jie. Size capacity, continuous watts, and inverter surge separately. Runtime figures are estimates, not lab tests. Not medical or electrical advice.
+
+The site answers how many watt-hours to shop for, whether an inverter can hold running watts, and whether a published peak is inverter surge or a resistive boost. Brand names identify products. They are not an endorsement.
+
+## Primary tools
+
+- [Portable power station calculator](https://powerstationsize.com/calculator/): Size a new station or estimate runtime for a verified model from the devices you run.
+- [Homepage calculator](https://powerstationsize.com/): Same tool on the homepage.
+
+## Decision pages
+
+- [Battery backup for a CPAP](https://powerstationsize.com/guides/cpap-backup-power/): Dry vs heated-humidifier watt-hours, then three verified stations. Not medical advice. A power station is not a medical device.
+- [Best portable power station for camping](https://powerstationsize.com/guides/camping-power-station/): 12V fridge, laptop, light, and phone load, then three verified stations that clear capacity, continuous output, and inverter surge.
+- [Can a portable power station run a refrigerator?](https://powerstationsize.com/guides/can-a-portable-power-station-run-a-refrigerator/): Home fridge needs inverter surge (~1,200 W start), not a boost rating. 12V camping fridge is easier (~500 W start).
+- [Watts vs watt-hours](https://powerstationsize.com/guides/watts-vs-watt-hours/): Watts are output. Watt-hours are stored energy. A 1,000 W headline is not a 1,000 Wh night.
+- [How long will a 1000Wh power station last?](https://powerstationsize.com/guides/how-long-will-a-1000wh-power-station-last/): 850 Wh usable. Dry CPAP ~14.9 h. Heated humidifier ~9.2 h. Fridge ~9.9 h only if the peak is inverter surge.
+- [Anker SOLIX C1000 vs BLUETTI Elite 100 V2](https://powerstationsize.com/guides/anker-solix-c1000-vs-bluetti-elite-100-v2/): Same ~1 kWh class. C1000 peak is SurgePad (resistive). Elite 100 V2 publishes inverter surge.
+- [Jackery Explorer 1000 v2 vs BLUETTI Elite 100 V2](https://powerstationsize.com/guides/jackery-explorer-1000-v2-vs-bluetti-elite-100-v2/): Both publish inverter surge. Jackery is lighter (23.8 lb). BLUETTI has higher continuous watts and solar input.
+- [Jackery Explorer 1000 v2 vs Anker SOLIX C1000](https://powerstationsize.com/guides/jackery-explorer-1000-v2-vs-anker-solix-c1000/): Jackery publishes inverter surge. C1000 peak is SurgePad. Completes the ~1 kWh triangle.
+- [Jackery Explorer 1000 v2 vs 2000 v2](https://powerstationsize.com/guides/jackery-explorer-1000-v2-vs-2000-v2/): Same line, both surge. Spare watt-hours versus 23.8 lb vs 39.5 lb.
+- [Anker SOLIX C1000 vs C1000 Gen 2](https://powerstationsize.com/guides/anker-solix-c1000-vs-c1000-gen-2/): Gen 2 lists 2,000 W continuous. Neither peak is inverter surge.
+
+## How the numbers work
+
+- [Methodology](https://powerstationsize.com/methodology/): Formulas, inverter efficiency 0.85, reserve 1.20, usable capacity 0.85, and known limits.
+- [Inverter surge versus boost](https://powerstationsize.com/guides/surge-vs-boost/): Adjudication table. X-Boost, Power Lifting, and SurgePad are resistive boost, not inverter surge. Each row cites manufacturer wording and the date it was read. The calculator will not clear a motor start against a boost peak.
+- [How to size a solar generator](https://powerstationsize.com/guides/solar-generator-sizing/): Watts vs watt-hours, and why panel wattage is not charge rate.
+
+## Worked scenarios
+
+- [CPAP overnight, humidifier off](https://powerstationsize.com/scenarios/cpap-overnight/)
+- [CPAP overnight, humidifier on](https://powerstationsize.com/scenarios/cpap-night-humidifier/)
+- [Fridge through an outage](https://powerstationsize.com/scenarios/fridge-outage/)
+- [Camping day](https://powerstationsize.com/scenarios/camping-day/)
+- [Work-from-home outage](https://powerstationsize.com/scenarios/work-from-home-outage/)
+- [Power tool off-grid](https://powerstationsize.com/scenarios/power-tool-off-grid/)
+
+## Spec library
+
+- [All stations](https://powerstationsize.com/stations/): Capacity, continuous output, and peak, each with a manufacturer source URL and verification date.
+- [EcoFlow](https://powerstationsize.com/brands/ecoflow/)
+- [Jackery](https://powerstationsize.com/brands/jackery/)
+- [BLUETTI](https://powerstationsize.com/brands/bluetti/)
+- [Anker SOLIX](https://powerstationsize.com/brands/anker-solix/)
+
+## Trust and funding
+
+- [About](https://powerstationsize.com/about/): What the site is, how specs are transcribed, how to send a correction.
+- [Affiliate disclosure](https://powerstationsize.com/disclosure/): Amazon Associates identification. Commissions do not change calculator output.
+- [Privacy](https://powerstationsize.com/privacy/)
+- [Terms](https://powerstationsize.com/terms/)
+- Contact: hello@powerstationsize.com
+
+## Optional
+
+- Refrigerator check pages exist at `/stations/{id}/refrigerator/` for each verified model. They use one estimated full-size fridge load. Prefer the calculator for a real appliance mix.

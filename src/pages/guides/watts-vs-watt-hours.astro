@@ -1,0 +1,320 @@
+---
+/**
+ * Second GEO explainer, same EtG skeleton: anxious mix-up → short answer →
+ * myth (the 1,000 W pack) → math table → three scenarios → calculator.
+ * Solar-generator-sizing already covers panels. This page is only W vs Wh.
+ */
+import Base from '../../layouts/Base.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import { site } from '../../data/site.ts';
+import { getScenario, analyzeScenario, scenarioQuery } from '../../data/scenarios.ts';
+import { isCurrent } from '../../lib/catalog.ts';
+import db from '../../data/power-stations.json';
+
+const catalog = db.stations.filter(isCurrent);
+const cpapDry = getScenario('cpap-overnight');
+const fridge = getScenario('fridge-outage');
+const tool = getScenario('power-tool-off-grid');
+if (!cpapDry || !fridge || !tool) throw new Error('watts-vs-wh scenarios missing');
+const dryA = analyzeScenario(cpapDry, catalog);
+const fridgeA = analyzeScenario(fridge, catalog);
+const toolA = analyzeScenario(tool, catalog);
+
+const n = (value: number) => Math.round(value).toLocaleString('en-US');
+const origin = Astro.site ?? site.url;
+const path = '/guides/watts-vs-watt-hours/';
+
+const faq = [
+  {
+    q: 'What is the difference between watts and watt-hours?',
+    a: 'Watts (W) are how fast energy moves: output. Watt-hours (Wh) are how much is stored: capacity. A 1,000 W station can still hold only 500 Wh, which is about 30 minutes at 1,000 W, not a night.',
+  },
+  {
+    q: 'Is 1,000 W enough for a fridge?',
+    a: '1,000 W is output, not runtime. A full-size fridge in this catalog runs near 150 W but starts near 1,200 W. You need inverter surge for the start and watt-hours for the hours. One number cannot answer both.',
+  },
+  {
+    q: 'How many watt-hours do I need for a CPAP night?',
+    a: `A dry CPAP night in this catalog shops about ${n(dryA.plan.recommendedWh)} Wh after inverter loss and reserve. A heated humidifier night is larger. Watts on the box do not size that night.`,
+  },
+  {
+    q: 'Does a higher watt rating mean longer runtime?',
+    a: 'No. Higher watts mean the inverter can hold a heavier load. Runtime is capacity divided by the load, after losses. A 2,000 W inverter on a 500 Wh pack is still a short pack.',
+  },
+  {
+    q: 'What is a solar generator, then?',
+    a: 'A battery with an optional solar input. Panel watts are a charge rate in sun, not extra watt-hours in the pack. See how to size a solar generator for that split.',
+  },
+];
+
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'Watts vs watt-hours on a portable power station',
+  description:
+    'Watts are output. Watt-hours are stored energy. A 1,000 W rating does not mean a 1,000 Wh night. Worked numbers for a CPAP, a fridge, and a saw.',
+  url: new URL(path, origin).href,
+  publisher: { '@type': 'Organization', name: site.name },
+  author: { '@type': 'Person', name: site.publisherName },
+};
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faq.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Base
+  title="Watts vs watt-hours on a power station"
+  description="Watts are output. Watt-hours are capacity. A 1,000 W rating is not a 1,000 Wh night. Worked calculator numbers for a CPAP, a fridge, and a saw."
+  canonicalPath={path}
+  ogImage="/images/guides/watts-vs-watt-hours/cover.png"
+>
+  <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+
+  <article class="mx-auto max-w-3xl px-4 py-16">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-moss-700 dark:text-moss-300">Sizing basics</p>
+    <h1 class="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+      Watts vs watt-hours: which number actually sizes the station
+    </h1>
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      The listing says 1,000 W. You need the fridge overnight. Those are not the same unit, and
+      mixing them is how people buy a pack that trips on the first compressor start, or dies in 40
+      minutes.
+    </p>
+    <figure class="mt-8">
+      <img
+        src="/images/guides/watts-vs-watt-hours/cover.png"
+        alt="Pencil sketch of a storage tank next to a faucet, the watt-hour tank versus the watts rate"
+        width="1024"
+        height="1024"
+        class="w-full h-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800"
+      />
+    </figure>
+
+    <aside class="mt-8 rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 text-sm dark:border-ink-800 dark:bg-ink-900">
+      <p class="font-semibold text-ink-900 dark:text-ink-100">Editorial note</p>
+      <p class="mt-2 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Maintained by {site.name}. Hours and watt-hours below come from the same formulas as the
+        <a href="/calculator/" class="text-moss-700 underline dark:text-moss-300">calculator</a>.
+        Device watts are engineering ranges. Not a lab test of your machine.
+      </p>
+      <p class="mt-2 text-xs text-ink-500">
+        <a href="/methodology/" class="underline">Methodology</a>: inverter 0.85, reserve 1.20, usable capacity 0.85.
+      </p>
+    </aside>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">The short answer</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Watts (W) tell you whether the inverter can hold the load. Watt-hours (Wh) tell you how long
+        the battery lasts. You need both. A third check, inverter surge, decides motor starts. A
+        single "1,000 W portable power station" headline answers none of those by itself.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">What each number is</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Watts are a rate. A 60 W bulb uses 60 joules per second. Run it for ten hours and you have
+        used 600 Wh. The station's output rating is the ceiling on that rate. The capacity rating is
+        the tank.
+      </p>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        On a spec sheet, continuous watts are the running ceiling. Peak watts are either inverter
+        surge or a resistive boost. Capacity is watt-hours. This site checks them separately so a
+        large tank cannot hide a weak inverter, and a loud watt number cannot hide an empty tank.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">The 1,000 W pack is misleading</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Retail titles often lead with watts because the number looks bigger. Search "1000W power
+        station" and you will see packs from a few hundred watt-hours to well over 1,000 Wh sharing
+        the same headline wattage.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">The context behind "1,000 W"</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        1,000 W means the inverter can hold about a 1,000 W running load. It does not mean you have
+        1,000 Wh in the battery. A 1,000 W / 500 Wh pack at a 1,000 W load lasts on the order of
+        half an hour before losses, not a night. The same 1,000 W inverter on a 1,024 Wh pack is a
+        different purchase.
+      </p>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        For a fridge, even 1,000 W continuous can be the wrong gate. The start in this catalog is
+        about 1,200 W of inverter surge. Matching the running watts is not the same check.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">How the hours fall out</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Roughly: watt-hours in the tank, times 0.85 usable, divided by the duty-weighted watts.
+        Then compare continuous watts to the load, and inverter surge to the largest motor start.
+        The
+        <a href="/calculator/" class="text-moss-700 underline dark:text-moss-300">calculator</a>
+        names which of those three fails first.
+      </p>
+      <figure class="mt-6">
+        <img
+          src="/images/guides/watts-vs-watt-hours/infographic.png"
+          alt="Three loads: CPAP is a watt-hour problem, a home fridge needs surge and watt-hours, a saw is gated by surge"
+          width="1024"
+          height="1024"
+          class="w-full h-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800"
+        />
+        <figcaption class="mt-2 text-xs text-ink-500">
+          CPAP shops about 542 Wh. Fridge about 826 Wh plus a 1,200 W start. Saw about 572 Wh with a 2,400 W start.
+        </figcaption>
+      </figure>
+      <div class="mt-6 overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+        <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+          <caption class="sr-only">Worked loads showing watts versus watt-hours</caption>
+          <thead>
+            <tr class="border-b border-ink-200 dark:border-ink-800">
+              <th scope="col" class="px-4 py-3 font-semibold">Load</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Running / start</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Shop about</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">CPAP, humidifier off, 8 h</th>
+              <td class="tabular px-4 py-3">{n(dryA.sizing.simultaneousW)} W / no start modelled</td>
+              <td class="tabular px-4 py-3">{n(dryA.plan.recommendedWh)} Wh</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">Home fridge outage, 8 h</th>
+              <td class="tabular px-4 py-3">{n(fridgeA.sizing.simultaneousW)} W / {n(fridgeA.sizing.peakSurgeW)} W start</td>
+              <td class="tabular px-4 py-3">{n(fridgeA.plan.recommendedWh)} Wh</td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3 font-medium">Circular saw, bursts</th>
+              <td class="tabular px-4 py-3">{n(toolA.sizing.simultaneousW)} W / {n(toolA.sizing.peakSurgeW)} W start</td>
+              <td class="tabular px-4 py-3">{n(toolA.plan.recommendedWh)} Wh</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-3 text-xs text-ink-500">
+        Shop figures include inverter loss and reserve. The saw is a surge problem. The CPAP is a
+        watt-hour problem. The fridge is both.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Three ways the mix-up shows up</h2>
+      <h3 class="mt-6 text-base font-semibold">Scenario 1: CPAP night</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Draw is small, on the order of {n(dryA.sizing.simultaneousW)} W dry. Almost any mid-size
+        inverter holds it. The number that decides the purchase is watt-hours for eight hours, and
+        whether the humidifier is on. See
+        <a href="/guides/cpap-backup-power/" class="text-moss-700 underline dark:text-moss-300">CPAP backup</a>.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Scenario 2: Home fridge</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Running watts look modest. Startup is about {n(fridgeA.sizing.peakSurgeW)} W. Capacity around
+        {n(fridgeA.plan.recommendedWh)} Wh covers eight hours in this catalog only if the peak is
+        inverter surge.
+        <a href="/guides/can-a-portable-power-station-run-a-refrigerator/" class="text-moss-700 underline dark:text-moss-300">
+          Can a power station run a refrigerator?
+        </a>
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Scenario 3: A saw</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Capacity can be small because the tool runs in bursts. The start is about {n(toolA.sizing.peakSurgeW)} W.
+        Extra watt-hours do not pull the trigger. A boost rating does not either.
+        <a href="/scenarios/power-tool-off-grid/" class="text-moss-700 underline dark:text-moss-300">Power tool scenario</a>.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">What will not help</h2>
+      <h3 class="mt-6 text-base font-semibold">Buying the louder watt number</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        2,000 W continuous on a 500 Wh pack is still 500 Wh. You get headroom, not hours.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Treating panel watts as extra battery</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        A 400 W panel is a charge rate in sun, after angle and weather. It is not 400 Wh sitting in
+        the case. That split is on
+        <a href="/guides/solar-generator-sizing/" class="text-moss-700 underline dark:text-moss-300">how to size a solar generator</a>.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Ignoring surge because capacity looks big</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        A 2 kWh pack with a boost-only peak still fails a fridge start on this site.
+        <a href="/guides/surge-vs-boost/" class="text-moss-700 underline dark:text-moss-300">Surge versus boost</a>.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Frequently asked questions</h2>
+      <div class="mt-6">
+        {
+          faq.map((item, index) => (
+            <details class="border-b border-ink-200 py-5 dark:border-ink-800" open={index === 0}>
+              <summary class="cursor-pointer text-lg font-semibold tracking-tight">{item.q}</summary>
+              <p class="mt-3 max-w-[72ch] text-base leading-7 text-ink-600 dark:text-ink-300">{item.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Related reading</h2>
+      <ul class="mt-4 space-y-2 text-sm">
+        <li>
+          <a href="/guides/solar-generator-sizing/" class="text-moss-700 underline dark:text-moss-300">How to size a solar generator</a>
+        </li>
+        <li>
+          <a href="/guides/how-long-will-a-1000wh-power-station-last/" class="text-moss-700 underline dark:text-moss-300">How long will a 1000Wh power station last?</a>
+        </li>
+        <li>
+          <a href="/guides/can-a-portable-power-station-run-a-refrigerator/" class="text-moss-700 underline dark:text-moss-300">Can a portable power station run a refrigerator?</a>
+        </li>
+        <li>
+          <a href="/guides/surge-vs-boost/" class="text-moss-700 underline dark:text-moss-300">Inverter surge versus boost</a>
+        </li>
+        <li>
+          <a href="/guides/cpap-backup-power/" class="text-moss-700 underline dark:text-moss-300">CPAP backup</a>
+        </li>
+        <li>
+          <a href="/methodology/" class="text-moss-700 underline dark:text-moss-300">Methodology</a>
+        </li>
+      </ul>
+    </section>
+
+    <section class="mt-12 rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+      <h2 class="text-lg font-semibold tracking-tight">Calculate your own estimate</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Add the devices you actually run. The first line of the result says whether you are short on
+        watt-hours, continuous watts, or startup surge.
+      </p>
+      <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+        <a
+          href={`/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(cpapDry))}&days=1`}
+          class="press inline-flex justify-center rounded-[var(--radius-control)] bg-moss-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss-600"
+        >
+          CPAP night
+        </a>
+        <a
+          href={`/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(fridge))}&days=1`}
+          class="press inline-flex justify-center rounded-[var(--radius-control)] border border-ink-200 px-4 py-2.5 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+        >
+          Fridge outage
+        </a>
+      </div>
+    </section>
+
+    <div class="mt-10">
+      <Disclaimer electrical />
+    </div>
+  </article>
+</Base>

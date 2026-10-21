@@ -1,0 +1,614 @@
+---
+/**
+ * GEO explainer: How long will a 1000Wh power station last?
+ * EtG skeleton: anxious question → short answer → myth → decay/hours table →
+ * three scenarios → calculator. Runtime uses the same 1000 Wh hypothetical
+ * the formula uses (85% usable), plus three verified ~1 kWh stations.
+ */
+import Base from '../../layouts/Base.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import db from '../../data/power-stations.json';
+import { site } from '../../data/site.ts';
+import { getScenario, analyzeScenario, scenarioQuery } from '../../data/scenarios.ts';
+import { amazonUrlFor, isCurrent, toStationSpec } from '../../lib/catalog.ts';
+import { runtimeFor, type StationSpec } from '../../lib/calculate.ts';
+
+const catalog = db.stations.filter(isCurrent);
+const amazonTag = (db.meta as { amazon_tag?: string }).amazon_tag ?? '';
+
+const dry = getScenario('cpap-overnight');
+const wet = getScenario('cpap-night-humidifier');
+const camp = getScenario('camping-day');
+const fridge = getScenario('fridge-outage');
+if (!dry || !wet || !camp || !fridge) throw new Error('1000Wh page missing scenarios');
+
+const dryA = analyzeScenario(dry, catalog);
+const wetA = analyzeScenario(wet, catalog);
+const campA = analyzeScenario(camp, catalog);
+const fridgeA = analyzeScenario(fridge, catalog);
+
+const generic1000: StationSpec = {
+  id: 'generic-1000wh',
+  brand: 'Nameplate',
+  model: '1,000 Wh',
+  capacity_wh: 1000,
+  output_continuous_w: 1500,
+  output_peak_w: 3000,
+  weight_lbs: null,
+  price_usd_list: null,
+  best_for: [],
+  affiliate_url: null,
+  peak_is_surge: true,
+};
+
+const n = (value: number) => Math.round(value).toLocaleString('en-US');
+const hours = (h: number) => `${h.toFixed(1)} h`;
+
+function constraintLabel(constraint: string | null): string {
+  if (constraint === 'surge') return 'Startup blocked';
+  if (constraint === 'surge_unverified') return 'Boost only, not checked';
+  if (constraint === 'continuous') return 'Continuous output short';
+  if (constraint === 'capacity') return 'Capacity short';
+  return 'Clears this load';
+}
+
+const loads = [
+  { key: 'dry', label: 'CPAP night, humidifier off', analysis: dryA, scenario: dry },
+  { key: 'wet', label: 'CPAP night, humidifier on', analysis: wetA, scenario: wet },
+  { key: 'camp', label: 'Camping day (12V fridge)', analysis: campA, scenario: camp },
+  { key: 'fridge', label: 'Home fridge outage, 8 h', analysis: fridgeA, scenario: fridge },
+] as const;
+
+const genericRows = loads.map((load) => ({
+  ...load,
+  runtime: runtimeFor(generic1000, load.analysis.rows),
+  calcHref: `/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(load.scenario))}&days=1`,
+}));
+
+const pickIds = ['bluetti-elite-100-v2', 'jackery-explorer-1000-v2', 'anker-solix-c1000'] as const;
+const picks = pickIds.map((id) => {
+  const station = catalog.find((s) => s.id === id);
+  if (!station) throw new Error(`1000Wh page missing ${id}`);
+  return {
+    station,
+    amazon: amazonUrlFor(station, amazonTag),
+    dry: runtimeFor(toStationSpec(station), dryA.rows),
+    wet: runtimeFor(toStationSpec(station), wetA.rows),
+    fridge: runtimeFor(toStationSpec(station), fridgeA.rows),
+  };
+});
+
+const dryHours = runtimeFor(generic1000, dryA.rows).averageHours;
+const wetHours = runtimeFor(generic1000, wetA.rows).averageHours;
+const campHours = runtimeFor(generic1000, campA.rows);
+const fridgeRun = runtimeFor(generic1000, fridgeA.rows);
+const fridgeHours = fridgeRun.averageHours;
+const fridgeWorst = fridgeRun.worstCaseHours;
+
+const constantLoads = [50, 60, 80, 100, 150, 200, 300, 500, 1000].map((watts) => ({
+  watts,
+  hours: 850 / watts,
+}));
+
+const faq = [
+  {
+    q: 'How long will a 1000Wh power station last?',
+    a: `On this site a 1,000 Wh nameplate is 850 Wh usable. A dry CPAP night lasts about ${hours(dryHours)}. A heated-humidifier night lasts about ${hours(wetHours)}. A home fridge that the inverter can start lasts about ${hours(fridgeHours)} on the duty-weighted average, or about ${hours(fridgeWorst)} if the compressor never stops. Hours change with the load. The 1,000 Wh figure is not a runtime.`,
+  },
+  {
+    q: 'Why is usable capacity only 850 Wh?',
+    a: 'The calculator treats 85 percent of nameplate as usable so the estimate does not assume you run the pack to empty. Inverter conversion is a separate 0.85 factor on the shop-capacity formula. Both are on the methodology page.',
+  },
+  {
+    q: 'Will a 1000Wh station run a refrigerator?',
+    a: 'Capacity is usually enough for about 10 hours in the 8-hour home-fridge example, using 35 percent compressor duty. The gate is inverter surge, about 1,200 W. A 1,000 Wh pack with a boost-only peak is not cleared for that start here.',
+  },
+  {
+    q: 'Does 1000W mean the same as 1000Wh?',
+    a: 'No. Watts are output. Watt-hours are stored energy. A 1,000 W inverter on a 500 Wh pack is still a short pack.',
+  },
+  {
+    q: 'How long does 1000Wh last at 100 watts?',
+    a: '850 Wh usable divided by 100 W is 8.5 hours, if that 100 W is continuous and the inverter can hold it. A fridge nameplate of 150 W is not 150 W all night; duty cycle changes the hours.',
+  },
+  {
+    q: 'How long does 1000Wh last overnight?',
+    a: `A dry CPAP night in this catalog is about ${hours(dryHours)}. A heated humidifier night is about ${hours(wetHours)}. Eight hours of a cycling home fridge is about ${hours(fridgeHours)} only if surge is published.`,
+  },
+  {
+    q: 'How do I get hours for my devices?',
+    a: 'Open the calculator, add the devices, and switch to runtime on a verified model. The first line names whether capacity, continuous watts, or surge fails first.',
+  },
+];
+
+const origin = Astro.site ?? site.url;
+const path = '/guides/how-long-will-a-1000wh-power-station-last/';
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'How long will a 1000Wh power station last?',
+  description:
+    'A 1,000 Wh nameplate is 850 Wh usable here. Dry CPAP about 14.9 h. Heated humidifier about 9.2 h. A fridge lasts about 9.9 h only if the inverter publishes surge.',
+  url: new URL(path, origin).href,
+  publisher: { '@type': 'Organization', name: site.name },
+  author: { '@type': 'Person', name: site.publisherName },
+};
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faq.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+---
+
+<Base
+  title="How long will a 1000Wh power station last?"
+  description="A 1,000 Wh pack is 850 Wh usable on this site. About 14.9 h on a dry CPAP night, 9.2 h with the humidifier on, 9.9 h on a home fridge if the peak is inverter surge. Not a lab test."
+  canonicalPath={path}
+  ogImage="/images/guides/how-long-will-a-1000wh-power-station-last/cover.png"
+>
+  <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+
+  <article class="mx-auto max-w-3xl px-4 py-16">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-moss-700 dark:text-moss-300">Runtime</p>
+    <h1 class="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+      How long will a 1000Wh power station last?
+    </h1>
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      You have a 1,000 Wh pack, or you are about to buy one. The listing does not say how many
+      hours. That number is the load, not the battery.
+    </p>
+    <figure class="mt-8">
+      <img
+        src="/images/guides/how-long-will-a-1000wh-power-station-last/cover.png"
+        alt="Pencil sketch of a 1,000 watt-hour portable power station next to a small clock"
+        width="1024"
+        height="1024"
+        class="w-full h-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800"
+      />
+    </figure>
+
+    <aside class="mt-8 rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 text-sm dark:border-ink-800 dark:bg-ink-900">
+      <p class="font-semibold text-ink-900 dark:text-ink-100">Editorial note</p>
+      <p class="mt-2 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Maintained by {site.name}. Hours below run a hypothetical 1,000 Wh nameplate at 85 percent
+        usable through the same
+        <a href="/calculator/" class="text-moss-700 underline dark:text-moss-300">calculator</a>
+        formulas. Device watts are engineering ranges. Not a lab test, not medical or electrical
+        advice.
+      </p>
+      <p class="mt-2 text-xs text-ink-500">
+        <a href="/methodology/" class="underline">Methodology</a>: usable capacity 0.85, inverter 0.85, reserve 1.20 on shop figures.
+      </p>
+    </aside>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">The short answer</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Treat 1,000 Wh as 850 Wh you can actually spend. A dry CPAP night in this catalog lasts
+        about {hours(dryHours)}. Turn the humidifier on and it drops to about {hours(wetHours)}. A
+        home fridge that the inverter can start lasts about {hours(fridgeHours)} on the
+        duty-weighted average, or about {hours(fridgeWorst)} if the compressor never cycles off. If
+        the peak on the box is SurgePad or another boost rating, this site does not count those
+        fridge hours.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">1,000 Wh is not a runtime</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Watt-hours are a tank. Hours are tank divided by how fast you drain it. Retail titles often
+        print 1,000 W and 1,000 Wh as if they were interchangeable. They are not. See
+        <a href="/guides/watts-vs-watt-hours/" class="text-moss-700 underline dark:text-moss-300">watts versus watt-hours</a>.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">The context behind "all day"</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        "All day" on a product page usually assumes a light mix: phones, a laptop, LED lights. A
+        fridge compressor or a heated CPAP humidifier is a different drain. The same 1,000 Wh pack
+        is a long night or a short one depending on which of those you plug in.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">How the hours are calculated</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Usable watt-hours = 1,000 × 0.85 = 850. Average draw is each device's watts times its duty
+        cycle. Hours = 850 ÷ that draw. A fridge at 150 W and 35 percent duty is 52.5 W average, not
+        150 W all night. Worst-case hours (everything at nameplate, no duty) are shorter; the table
+        uses the duty-weighted figure, same as the calculator's "average" runtime.
+      </p>
+      <figure class="mt-6">
+        <img
+          src="/images/guides/how-long-will-a-1000wh-power-station-last/infographic.png"
+          alt="Three 1,000 watt-hour runtimes: dry CPAP about 14.9 hours, heated humidifier about 9.2 hours, home fridge about 9.9 hours if surge is published"
+          width="1024"
+          height="1024"
+          class="w-full h-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800"
+        />
+        <figcaption class="mt-2 text-xs text-ink-500">
+          850 Wh usable. Fridge hours only count if the pack publishes inverter surge.
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Hours at a constant draw</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        If the load never cycles, hours are just 850 divided by watts. This is the same idea as a
+        half-life table: the tank is fixed, the drain rate changes the clock. A fridge nameplate is
+        not a constant draw. Use this table for heaters, routers, and other loads that sit on.
+      </p>
+      <div class="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+        <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+          <caption class="sr-only">Estimated hours from 850 watt-hours at a constant wattage</caption>
+          <thead>
+            <tr class="border-b border-ink-200 dark:border-ink-800">
+              <th scope="col" class="px-4 py-3 font-semibold">Continuous load</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Estimated hours</th>
+              <th scope="col" class="px-4 py-3 font-semibold">What that looks like</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <td class="tabular px-4 py-3">50 W</td>
+              <td class="tabular px-4 py-3">{hours(constantLoads[0].hours)}</td>
+              <td class="px-4 py-3">A dry CPAP is in this neighborhood.</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <td class="tabular px-4 py-3">60 W</td>
+              <td class="tabular px-4 py-3">{hours(constantLoads[1].hours)}</td>
+              <td class="px-4 py-3">Laptop charger, lights, a phone.</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <td class="tabular px-4 py-3">80 W</td>
+              <td class="tabular px-4 py-3">{hours(constantLoads[2].hours)}</td>
+              <td class="px-4 py-3">Heated CPAP in this catalog.</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <td class="tabular px-4 py-3">100 W</td>
+              <td class="tabular px-4 py-3">{hours(constantLoads[3].hours)}</td>
+              <td class="px-4 py-3">A round number people type into search.</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <td class="tabular px-4 py-3">150 W</td>
+              <td class="tabular px-4 py-3">{hours(constantLoads[4].hours)}</td>
+              <td class="px-4 py-3">Fridge nameplate if the compressor never stopped. It does.</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <td class="tabular px-4 py-3">200 W</td>
+              <td class="tabular px-4 py-3">{hours(constantLoads[5].hours)}</td>
+              <td class="px-4 py-3">A small TV plus a laptop.</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <td class="tabular px-4 py-3">300 W</td>
+              <td class="tabular px-4 py-3">{hours(constantLoads[6].hours)}</td>
+              <td class="px-4 py-3">A blender, a game console, a short kitchen load.</td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <td class="tabular px-4 py-3">500 W</td>
+              <td class="tabular px-4 py-3">{hours(constantLoads[7].hours)}</td>
+              <td class="px-4 py-3">A microwave burst, not a night.</td>
+            </tr>
+            <tr>
+              <td class="tabular px-4 py-3">1,000 W</td>
+              <td class="tabular px-4 py-3">{hours(constantLoads[8].hours)}</td>
+              <td class="px-4 py-3">The inverter may hold it. The tank is empty in under an hour.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-3 text-xs text-ink-500">
+        These hours ignore motor start. A 1,000 W heater is resistive. A 1,000 W saw is not.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Three real loads at 24 hours of backup</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        The question is not only "how long." It is whether 1,000 Wh covers the night you actually
+        have. These three use the same 850 Wh usable tank.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Scenario 1: Dry CPAP, 8 h</h3>
+      <ul class="mt-3 space-y-2 text-sm text-ink-600 dark:text-ink-300">
+        <li class="max-w-[68ch]">Load: 45 W machine plus a 12 W phone charge (2 h).</li>
+        <li class="max-w-[68ch]">Average draw: 57 W. No compressor start modelled.</li>
+        <li class="max-w-[68ch]">Hours from 850 Wh: {hours(dryHours)}. Shop figure for a new pack: {n(dryA.plan.recommendedWh)} Wh after inverter loss and reserve.</li>
+        <li class="max-w-[68ch]">At 24 hours of backup you would need more tank, or a second night on the wall. One 1,000 Wh pack covers one prescribed night in this catalog, not three.</li>
+      </ul>
+      <h3 class="mt-6 text-base font-semibold">Scenario 2: Heated humidifier, 8 h</h3>
+      <ul class="mt-3 space-y-2 text-sm text-ink-600 dark:text-ink-300">
+        <li class="max-w-[68ch]">Load: 80 W machine plus the same phone charge.</li>
+        <li class="max-w-[68ch]">Average draw: 92 W.</li>
+        <li class="max-w-[68ch]">Hours: {hours(wetHours)}. Shop figure: {n(wetA.plan.recommendedWh)} Wh. Heating is the variable that changes the size you buy.</li>
+        <li class="max-w-[68ch]">A 1,000 Wh pack still covers one night here, with less spare than the dry case. Do not turn the humidifier off to fit the battery unless your clinician says that is appropriate.</li>
+      </ul>
+      <h3 class="mt-6 text-base font-semibold">Scenario 3: Home fridge, 8 h, plus router and lights</h3>
+      <ul class="mt-3 space-y-2 text-sm text-ink-600 dark:text-ink-300">
+        <li class="max-w-[68ch]">Fridge 150 W at 35 percent duty (420 Wh raw), router 12 W × 8 h, lamps, a phone.</li>
+        <li class="max-w-[68ch]">Average draw: 85.5 W. Start: 1,200 W.</li>
+        <li class="max-w-[68ch]">Duty-weighted hours: {hours(fridgeHours)}. If the compressor never stopped: {hours(fridgeWorst)}. Shop figure: {n(fridgeA.plan.recommendedWh)} Wh.</li>
+        <li class="max-w-[68ch]">Capacity is the easy half. A boost-only 1,000 Wh pack is surge-unverified on this load. That is the C1000 case.</li>
+      </ul>
+      <p class="mt-4 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        A camping day with a 12V fridge sits between these: {hours(campHours.averageHours)} average,
+        {hours(campHours.worstCaseHours)} if nothing cycles, start about 500 W.
+        <a href="/guides/camping-power-station/" class="text-moss-700 underline dark:text-moss-300">Camping picks</a>.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Average hours versus worst case</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        The calculator prints two clocks. Average hours apply duty cycle (the fridge compressor
+        rests). Worst-case hours assume every device draws nameplate watts at once, continuously.
+        For a dry CPAP they are the same, because duty is 100 percent. For the fridge they split:
+        {hours(fridgeHours)} versus {hours(fridgeWorst)}. If you are sizing an outage and you do not
+        know the duty, believe the worse number.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Same 1,000 Wh, four loads</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Hypothetical 1,000 Wh nameplate, 1,500 W continuous, 3,000 W inverter surge. Open a row to
+        change watts or hours.
+      </p>
+      <div class="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+        <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+          <thead>
+            <tr class="border-b border-ink-200 dark:border-ink-800">
+              <th scope="col" class="px-4 py-3 font-semibold">Load</th>
+              <th scope="col" class="px-4 py-3 font-semibold">1,000 Wh pack</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Shop about</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              genericRows.map((row) => (
+                <tr class="border-b border-ink-100 dark:border-ink-800/60">
+                  <th scope="row" class="px-4 py-3 font-medium">
+                    <a href={row.calcHref} class="text-moss-700 underline dark:text-moss-300">
+                      {row.label}
+                    </a>
+                    <span class="mt-1 block text-xs font-normal text-ink-500">
+                      {n(row.analysis.sizing.simultaneousW)} W running
+                      {row.analysis.sizing.peakSurgeW ? ` · start ${n(row.analysis.sizing.peakSurgeW)} W` : ''}
+                    </span>
+                  </th>
+                  <td class="px-4 py-3">
+                    <span class="block font-semibold">{constraintLabel(row.runtime.bindingConstraint)}</span>
+                    <span class="tabular text-xs text-ink-500">{hours(row.runtime.averageHours)} est.</span>
+                  </td>
+                  <td class="tabular px-4 py-3">{n(row.analysis.plan.recommendedWh)} Wh</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      <h3 class="mt-8 text-base font-semibold">What is inside the fridge row</h3>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Raw energy before inverter loss is {n(fridgeA.plan.dailyWh)} Wh. The shop figure ({n(fridgeA.plan.recommendedWh)} Wh)
+        divides by 0.85 and multiplies by 1.20. Runtime on a pack you already own uses 850 Wh, not
+        the shop figure.
+      </p>
+      <div class="mt-4 overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+        <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+          <thead>
+            <tr class="border-b border-ink-200 dark:border-ink-800">
+              <th scope="col" class="px-4 py-3 font-semibold">Device</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Running</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Duty</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Energy</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Start</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              fridgeA.sizing.perDevice.map((row) => (
+                <tr class="border-b border-ink-100 dark:border-ink-800/60">
+                  <th scope="row" class="px-4 py-3 font-medium">{row.label}</th>
+                  <td class="tabular px-4 py-3">{row.watts} W</td>
+                  <td class="tabular px-4 py-3">{Math.round(row.dutyCycle * 100)}%</td>
+                  <td class="tabular px-4 py-3">{n(row.dailyWh)} Wh</td>
+                  <td class="tabular px-4 py-3">{row.surgeWatts ? `${n(row.surgeWatts)} W` : '—'}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">What actually changes the hours</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        This is the factor retail copy skips, the way cutoff skipped EtG math.
+      </p>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        A 500 ng/mL versus 100 ng/mL cutoff changed that test by half a day. Here the equivalent
+        split is duty cycle and surge. Two 1,000 Wh packs with the same tank print different fridge
+        answers if one peak is inverter surge and the other is SurgePad.
+      </p>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Cold cuts usable capacity. An old LiFePO4 pack that has seen 3,000 cycles is not a new 1,000
+        Wh. Inverter efficiency below 0.85 (a cheap modified-sine unit, a long extension cord) eats
+        hours the same way. None of those are in the headline watt-hour number.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Three real ~1 kWh stations</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Nameplates are 1,024 to 1,070 Wh, not a round 1,000. Hours move a little. The surge label
+        moves the fridge column. Affiliate links may earn a commission.
+      </p>
+      <ol class="mt-8 space-y-6">
+        {
+          picks.map((pick, i) => (
+            <li class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-moss-700 dark:text-moss-300">
+                #{i + 1}
+              </p>
+              <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+                <img
+                  src={`/images/stations/${pick.station.id}.webp`}
+                  alt={`${pick.station.brand} ${pick.station.model}`}
+                  width="160"
+                  height="120"
+                  class="h-24 w-32 shrink-0 object-contain"
+                />
+                <div class="min-w-0 flex-1">
+                  <h3 class="text-lg font-semibold">
+                    {pick.station.brand} {pick.station.model}
+                  </h3>
+                  <p class="tabular mt-1 text-sm text-ink-500">
+                    {n(pick.station.capacity_wh)} Wh
+                    {pick.station.peak_is_surge === false ? ' · boost peak' : ' · inverter surge'}
+                  </p>
+                  <dl class="mt-4 grid grid-cols-3 gap-3 text-sm">
+                    <div>
+                      <dt class="text-xs text-ink-500">Dry CPAP</dt>
+                      <dd class="tabular font-semibold">{hours(pick.dry.averageHours)}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-ink-500">Heated CPAP</dt>
+                      <dd class="tabular font-semibold">{hours(pick.wet.averageHours)}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-ink-500">Home fridge</dt>
+                      <dd class="font-semibold">{constraintLabel(pick.fridge.bindingConstraint)}</dd>
+                      <dd class="tabular text-xs text-ink-500">{hours(pick.fridge.averageHours)}</dd>
+                    </div>
+                  </dl>
+                  <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+                    {pick.amazon ? (
+                      <a
+                        href={pick.amazon}
+                        rel="sponsored nofollow noopener"
+                        target="_blank"
+                        class="press inline-flex justify-center rounded-[var(--radius-control)] bg-moss-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss-600"
+                      >
+                        Check price on Amazon
+                      </a>
+                    ) : null}
+                    <a
+                      href={`/stations/${pick.station.id}/`}
+                      class="press inline-flex justify-center rounded-[var(--radius-control)] border border-ink-200 px-4 py-2.5 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+                    >
+                      Full specs
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">What will not add hours</h2>
+      <h3 class="mt-6 text-base font-semibold">A louder watt number on the same tank</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        2,000 W continuous on 1,000 Wh is still 1,000 Wh. You get headroom, not a longer night.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Treating boost as a fridge start</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        C1000 holds similar watt-hours. Its 2,400 W peak is SurgePad. Fridge hours stay unverified
+        on this site.
+        <a href="/guides/can-a-portable-power-station-run-a-refrigerator/" class="text-moss-700 underline dark:text-moss-300">
+          Can a power station run a refrigerator?
+        </a>
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Running the pack to 0%</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        The 85 percent usable factor is there so the estimate does not assume an empty battery at
+        sunrise. Cold weather and an old pack cut that further.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Solar on a cloudy day</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        A 400 W panel is a charge rate in sun, not 400 extra watt-hours in the case. Night runtime
+        is still the tank you started with.
+        <a href="/guides/solar-generator-sizing/" class="text-moss-700 underline dark:text-moss-300">How to size a solar generator</a>.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Frequently asked questions</h2>
+      <div class="mt-6">
+        {
+          faq.map((item, index) => (
+            <details class="border-b border-ink-200 py-5 dark:border-ink-800" open={index === 0}>
+              <summary class="cursor-pointer text-lg font-semibold tracking-tight">{item.q}</summary>
+              <p class="mt-3 max-w-[72ch] text-base leading-7 text-ink-600 dark:text-ink-300">{item.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Related reading</h2>
+      <ul class="mt-4 space-y-2 text-sm">
+        <li>
+          <a href="/guides/watts-vs-watt-hours/" class="text-moss-700 underline dark:text-moss-300">Watts vs watt-hours</a>
+        </li>
+        <li>
+          <a href="/guides/cpap-backup-power/" class="text-moss-700 underline dark:text-moss-300">CPAP backup</a>
+        </li>
+        <li>
+          <a href="/guides/can-a-portable-power-station-run-a-refrigerator/" class="text-moss-700 underline dark:text-moss-300">Can a portable power station run a refrigerator?</a>
+        </li>
+        <li>
+          <a href="/guides/anker-solix-c1000-vs-bluetti-elite-100-v2/" class="text-moss-700 underline dark:text-moss-300">C1000 vs Elite 100 V2</a>
+        </li>
+        <li>
+          <a href="/methodology/" class="text-moss-700 underline dark:text-moss-300">Methodology</a>
+        </li>
+      </ul>
+    </section>
+
+    <section class="mt-12 rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+      <h2 class="text-lg font-semibold tracking-tight">Calculate your own hours</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Prefill a load, then pick a verified model in runtime mode. The first line names the
+        binding limit.
+      </p>
+      <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <a
+          href={`/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(dry))}&days=1`}
+          class="press inline-flex justify-center rounded-[var(--radius-control)] bg-moss-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss-600"
+        >
+          Dry CPAP night
+        </a>
+        <a
+          href={`/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(wet))}&days=1`}
+          class="press inline-flex justify-center rounded-[var(--radius-control)] border border-ink-200 px-4 py-2.5 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+        >
+          Heated humidifier
+        </a>
+        <a
+          href={`/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(fridge))}&days=1`}
+          class="press inline-flex justify-center rounded-[var(--radius-control)] border border-ink-200 px-4 py-2.5 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+        >
+          Fridge outage
+        </a>
+        <a
+          href={`/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(camp))}&days=1`}
+          class="press inline-flex justify-center rounded-[var(--radius-control)] border border-ink-200 px-4 py-2.5 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+        >
+          Camping day
+        </a>
+      </div>
+    </section>
+
+    <div class="mt-10">
+      <Disclaimer medical electrical />
+    </div>
+  </article>
+</Base>

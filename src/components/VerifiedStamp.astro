@@ -1,0 +1,28 @@
+---
+import { isVerificationStale } from '../lib/catalog.ts';
+
+interface Props {
+  verifiedAt: string;
+  sourceUrl: string;
+}
+
+const { verifiedAt, sourceUrl } = Astro.props;
+const stale = isVerificationStale(verifiedAt);
+const host = new URL(sourceUrl).hostname;
+---
+
+<p
+  class:list={[
+    'mt-4 text-sm',
+    stale ? 'text-amber-accent-700 dark:text-amber-accent-300' : 'text-ink-500 dark:text-ink-400',
+  ]}
+>
+  Source:
+  <a href={sourceUrl} rel="nofollow noopener" class="underline">{host}</a>.
+  Verified {verifiedAt}.
+  {
+    stale
+      ? ' This reading is more than 90 days old. Check the manufacturer page before you rely on it.'
+      : ' Numbers are copied from that page, not from a lab test.'
+  }
+</p>

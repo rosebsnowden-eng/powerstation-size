@@ -1,0 +1,205 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site.ts';
+---
+
+<Base
+  title="Privacy policy"
+  description={`How ${site.name} handles calculator links, optional Google Analytics, cookies, fonts, email, and hosting.`}
+>
+  <article class="mx-auto max-w-3xl px-4 py-12">
+    <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">Privacy policy</h1>
+    <p class="mt-4 text-sm text-ink-500 dark:text-ink-400">Last updated: {site.legalUpdated}.</p>
+
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      This policy describes {site.name} ({site.domain}). It covers what stays in your browser, what
+      third parties may see when a page loads, and how to reach us. It is written for the site as it
+      runs today. If a collection method is added later, this page will name it before or at the
+      same time the code ships.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">The calculator is local</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Device names, wattages, hours, duty cycles, backup days, and solar settings are processed by
+      JavaScript in your browser. The calculator does not submit a form containing those values or
+      save them in an account. There is no login and no
+      newsletter form.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      New shareable links put the encoded device list and selected settings after #calculator? in
+      the URL fragment. Browsers do not include the fragment in the HTTP page request, but anyone
+      with the link can read it, and it may remain in browser history or a messaging service.
+      It is not encrypted. Do not share a link if its contents are sensitive.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Older links used query parameters. Opening one sends those parameters to the host in the
+      initial request. Our script moves the calculator parameters into the fragment before loading
+      optional Analytics; it cannot undo that first request or earlier collection. Scripts running
+      on a page can read its URL, including the fragment.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">What loads when you open a page</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      A page request reaches the host. Fonts load from Google, and Analytics loads only if you
+      accept it. Legacy share URLs can include calculator inputs in the hosting request.
+    </p>
+
+    <h3 class="mt-8 text-base font-semibold tracking-tight">Cloudflare</h3>
+    <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      The site is served from Cloudflare Pages. Cloudflare receives the IP address, browser, and URL
+      of each request in order to deliver the files and to absorb abuse. Cloudflare may set a
+      security cookie such as __cf_bm. That cookie is Cloudflare's, not a {site.name} login cookie.
+      Incoming mail to
+      <!--email_off--><a class="text-moss-700 underline dark:text-moss-300" href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a><!--/email_off-->
+      is received through Cloudflare Email Routing and forwarded to a mailbox we monitor. There is
+      no newsletter subscription associated with contacting us.
+    </p>
+
+    <h3 class="mt-8 text-base font-semibold tracking-tight">Google Analytics 4</h3>
+    <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Google Analytics 4 (measurement ID {site.analytics.ga4}) stays off until you choose
+      "Accept analytics". After acceptance, Google's tag can collect usage, browser, device, and
+      network information and set first-party cookies such as _ga. Google receives your IP address
+      when handling requests; its processing rules can differ by region. We do not describe this
+      as storing a truncated IP address.
+    </p>
+    <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Google's own description of this processing is in
+      <a class="text-moss-700 underline dark:text-moss-300" href="https://policies.google.com/privacy" rel="noopener">Google's privacy policy</a>
+      and
+      <a class="text-moss-700 underline dark:text-moss-300" href="https://support.google.com/analytics/answer/12017362?hl=en" rel="noopener">regional data collection documentation</a>.
+      We configure Analytics page location and referrer values without query strings or fragments,
+      do not add calculator-input events, and disable Google signals and advertising personalization
+      in the tag configuration. We have not added a Google Ads conversion tag. The calculator works
+      without Analytics.
+    </p>
+
+    <h3 class="mt-8 text-base font-semibold tracking-tight">Google Fonts</h3>
+    <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Page text requests Fraunces, Source Sans 3, and IBM Plex Mono from fonts.googleapis.com and
+      fonts.gstatic.com. Google can see the IP address of that request. Font files are not the
+      calculator. If fonts are later self-hosted, this paragraph will be removed.
+    </p>
+
+    <h3 class="mt-8 text-base font-semibold tracking-tight">Email you send us</h3>
+    <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      If you write to {site.contactEmail}, we receive whatever you put in the message: your address,
+      the subject, body, and any attachments. We use this information to handle your request and
+      investigate corrections. Please do not send medical records or other sensitive information
+      that is unnecessary for your question. There is no mailing list.
+    </p>
+
+    <h3 class="mt-8 text-base font-semibold tracking-tight">Affiliate cookies</h3>
+    <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      {
+        site.affiliateLive
+          ? 'When you follow a retailer link, that retailer or its network may set a cookie so a purchase can be attributed to this site. That cookie is theirs. The disclosure page names the programs.'
+          : 'No affiliate or retailer checkout links are live. Model pages link to the manufacturer source with rel="nofollow noopener". If checkout links are added, this section and the disclosure page will name the programs on the same deploy.'
+      }
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Cookies, in one list</h2>
+    <ul class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">
+        <strong class="text-ink-900 dark:text-ink-100">Google Analytics</strong> (_ga and related):
+        usage measurement. Set only after you accept optional Analytics.
+      </li>
+      <li class="max-w-[68ch]">
+        <strong class="text-ink-900 dark:text-ink-100">Cloudflare</strong> (for example __cf_bm):
+        bot management. Set by Cloudflare on some requests.
+      </li>
+      <li class="max-w-[68ch]">
+        <strong class="text-ink-900 dark:text-ink-100">Analytics preference</strong>: the browser's
+        local storage holds pss-analytics-consent for up to 180 days to remember acceptance or
+        refusal. This is not an analytics identifier. If storage is unavailable, your choice may
+        not persist when you leave the page. Calculator state stays in the page or a shared URL.
+      </li>
+    </ul>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Use "Reject analytics" to continue without loading the tag, or "Analytics settings" in the
+      footer to change your choice. Rejecting after acceptance disables the tag, removes accessible
+      _ga cookies for this site, and reloads the page to stop the loaded script. It does not delete
+      data previously received by Google. Blocking third-party cookies alone may not stop Analytics
+      because its cookies can be first-party. Clearing site storage also clears your preference.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">How this information is used</h2>
+    <ul class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">To serve the pages and keep the host available.</li>
+      <li class="max-w-[68ch]">To see which URLs are used, so the calculator and guides can be improved.</li>
+      <li class="max-w-[68ch]">To answer email and to correct a wrong specification.</li>
+    </ul>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      We do not sell mailing lists or calculator inputs. We do not run a remarketing pixel. We do not build a
+      profile of the appliances you typed.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Who else can see it</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Cloudflare (hosting and inbound mail routing), Google (optional Analytics and Fonts), and our
+      email mailbox provider process information as described above. These providers may process
+      information outside your country under their own terms and applicable safeguards. Information
+      may also need to be disclosed to comply with a lawful request.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Retention</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      We do not maintain an account database of calculator inputs. Hosting records may include
+      legacy query links; provider retention rules apply to those records. Analytics retention
+      depends on the GA4 property settings and Google's policies, which can treat aggregated reports
+      differently from event-level data. We do not claim a particular property retention period
+      here. Contact us for the current setting. Email may be kept while a request, correction, or
+      related record is needed, including legal obligations. We do not promise automatic deletion
+      immediately after a reply.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Your choices</h2>
+    <ul class="mt-4 space-y-3 text-sm text-ink-600 dark:text-ink-300">
+      <li class="max-w-[68ch]">
+        Reject optional Analytics or withdraw your choice using the footer's Analytics settings.
+        You do not need to accept to use any calculator feature.
+      </li>
+      <li class="max-w-[68ch]">
+        Use Google's
+        <a class="text-moss-700 underline dark:text-moss-300" href="https://tools.google.com/dlpage/gaoptout" rel="noopener">Analytics opt-out add-on</a>
+        if you want that control specifically.
+      </li>
+      <li class="max-w-[68ch]">
+        Email {site.contactEmail} to ask what we still hold from a message you sent, or to ask that
+        the thread be deleted.
+      </li>
+    </ul>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Depending on your location and the law that applies, you may have rights to access, correct,
+      delete, restrict, or receive a copy of your personal information, object to processing, or
+      withdraw consent. You may also be able to complain to a data protection authority. Send
+      requests to the contact address below. We may need to verify your request, and legal
+      exceptions can apply. Do not send identity documents unless we explain why they are needed.
+    </p>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      Optional Analytics is based on your choice. Hosting and security support delivery of the
+      site; email processing supports the request you send us. Where a legal basis is required,
+      these activities may rely on consent, legitimate interests in operating and securing the
+      site and responding to requests, or legal obligations, as applicable.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Children</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      This site is written for adults sizing backup power. It is not directed at children under 13,
+      and we do not knowingly collect information from them.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Changes</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      If collection changes (a new tag, a form, affiliate cookies, self-hosted fonts), this page
+      gets a new "Last updated" date in the same deploy as the code. The current date is
+      {site.legalUpdated}.
+    </p>
+
+    <h2 class="mt-10 text-xl font-semibold tracking-tight">Contact</h2>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      {site.name}, {site.domain}. Email
+      <!--email_off--><a class="text-moss-700 underline dark:text-moss-300" href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a><!--/email_off-->.
+    </p>
+  </article>
+</Base>

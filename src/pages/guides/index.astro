@@ -1,0 +1,96 @@
+---
+import Base from '../../layouts/Base.astro';
+
+/**
+ * Guide index. Deliberately short. The 150-page pipeline described in the
+ * earlier planning notes was replaced by the narrower page list, so only
+ * guides that have actually been written appear here.
+ */
+const guides = [
+  {
+    href: '/guides/solar-generator-sizing/',
+    title: 'How to size a solar generator',
+    body: 'The difference between watts and watt-hours, why panel wattage is not the same as charge rate, and how to work out what you need.',
+  },
+  {
+    href: '/guides/cpap-backup-power/',
+    title: 'Battery backup for a CPAP',
+    body: 'Size a dry night versus a heated-humidifier night, then three verified stations that cover the estimate, with Amazon links.',
+  },
+  {
+    href: '/guides/camping-power-station/',
+    title: 'Best portable power station for camping',
+    body: 'Size a 12V fridge, laptop, light, and phone day, then three verified stations that cover that load, with Amazon links.',
+  },
+  {
+    href: '/guides/can-a-portable-power-station-run-a-refrigerator/',
+    title: 'Can a portable power station run a refrigerator?',
+    body: 'Home fridge vs 12V camping fridge. Inverter surge, not a boost rating, is what starts the compressor. Calculator hours for three verified stations.',
+  },
+  {
+    href: '/guides/watts-vs-watt-hours/',
+    title: 'Watts vs watt-hours',
+    body: 'Watts are output. Watt-hours are capacity. A 1,000 W rating is not a 1,000 Wh night. Worked numbers for a CPAP, a fridge, and a saw.',
+  },
+  {
+    href: '/guides/how-long-will-a-1000wh-power-station-last/',
+    title: 'How long will a 1000Wh power station last?',
+    body: 'A 1,000 Wh nameplate is 850 Wh usable here. Dry CPAP about 14.9 h, heated humidifier about 9.2 h, fridge about 9.9 h if the peak is inverter surge.',
+  },
+  {
+    href: '/guides/anker-solix-c1000-vs-bluetti-elite-100-v2/',
+    title: 'Anker SOLIX C1000 vs BLUETTI Elite 100 V2',
+    body: 'Same ~1 kWh class. The C1000 peak is SurgePad. Elite 100 V2 publishes inverter surge. Calculator hours for CPAP, camping, and a fridge.',
+  },
+  {
+    href: '/guides/jackery-explorer-1000-v2-vs-bluetti-elite-100-v2/',
+    title: 'Jackery Explorer 1000 v2 vs BLUETTI Elite 100 V2',
+    body: 'Both publish inverter surge. Jackery is 23.8 lb with 1,500 W continuous. BLUETTI has 1,800 W and 1,000 W solar input.',
+  },
+  {
+    href: '/guides/jackery-explorer-1000-v2-vs-anker-solix-c1000/',
+    title: 'Jackery Explorer 1000 v2 vs Anker SOLIX C1000',
+    body: 'Jackery publishes inverter surge and 23.8 lb. C1000 peak is SurgePad, with 1,800 W continuous and a 5-year warranty.',
+  },
+  {
+    href: '/guides/jackery-explorer-1000-v2-vs-2000-v2/',
+    title: 'Jackery Explorer 1000 v2 vs 2000 v2',
+    body: 'Same v2 line, both with inverter surge. 1,070 Wh at 23.8 lb versus 2,042 Wh at 39.5 lb.',
+  },
+  {
+    href: '/guides/anker-solix-c1000-vs-c1000-gen-2/',
+    title: 'Anker SOLIX C1000 vs C1000 Gen 2',
+    body: 'Gen 2 lists 2,000 W continuous. Neither peak is treated as inverter surge. Not a fridge-start upgrade.',
+  },
+  {
+    href: '/guides/surge-vs-boost/',
+    title: 'Inverter surge versus boost ratings',
+    body: 'Which peak figures are inverter surge, and which are resistive boost ratings that do not clear a motor start.',
+  },
+];
+---
+
+<Base
+  title="Power station sizing guides"
+  description="How to size a solar generator and estimate CPAP backup power, with the same formulas the calculator uses."
+>
+  <section class="mx-auto max-w-6xl px-4 py-16">
+    <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">Guides</h1>
+    <p class="mt-4 max-w-[68ch] text-lg leading-7 text-ink-600 dark:text-ink-300">
+      Short pieces that explain the reasoning behind the calculator, without the padding.
+    </p>
+
+    <div class="mt-10 grid gap-4 sm:grid-cols-2">
+      {
+        guides.map((g) => (
+          <article class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 transition-colors hover:border-moss-500 dark:border-ink-800 dark:bg-ink-900">
+            <h2 class="text-lg font-semibold">
+              <a href={g.href} class="hover:text-moss-700 dark:hover:text-moss-300">{g.title}</a>
+            </h2>
+            <p class="mt-2 text-sm leading-6 text-ink-600 dark:text-ink-300">{g.body}</p>
+          </article>
+        ))
+      }
+    </div>
+  </section>
+</Base>

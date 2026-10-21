@@ -1,0 +1,312 @@
+---
+/**
+ * Station detail page, generated from the verified spec database.
+ *
+ * Renders nothing unless the record passes the validation gate, which runs
+ * before every build (npm run validate:data). Brand affiliate links render only
+ * when meta.affiliate_approved is true; Amazon links render when meta.amazon_tag
+ * is set and the station is not out_of_stock or discontinued.
+ */
+import Base from '../../layouts/Base.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import db from '../../data/power-stations.json';
+import VerifiedStamp from '../../components/VerifiedStamp.astro';
+import { bestForLabel, brandSlug, fridgeHomeLoad, toStationSpec } from '../../lib/catalog.ts';
+import { runtimeFor } from '../../lib/calculate.ts';
+
+export function getStaticPaths() {
+  return db.stations.map((station) => ({
+    params: { id: station.id },
+    props: { station },
+  }));
+}
+
+const { station } = Astro.props;
+const money = (n: number | null) => (n ? `$${n.toLocaleString('en-US')}` : null);
+
+const specs: Array<{ label: string; value: string | null }> = [
+  { label: 'Capacity', value: `${station.capacity_wh.toLocaleString('en-US')} Wh` },
+  { label: 'Continuous output', value: `${station.output_continuous_w.toLocaleString('en-US')} W` },
+  {
+    label: station.peak_is_surge === false ? 'Boost rating (not inverter surge)' : 'Inverter surge',
+    value: `${station.output_peak_w.toLocaleString('en-US')} W`,
+  },
+  {
+    label: 'Solar input max',
+    value: station.solar_input_max_w ? `${station.solar_input_max_w} W` : null,
+  },
+  { label: 'Battery chemistry', value: station.battery_chemistry },
+  { label: 'Cycle life', value: station.cycles ? `${station.cycles.toLocaleString('en-US')} cycles` : null },
+  { label: 'Weight', value: station.weight_lbs ? `${station.weight_lbs} lb` : null },
+  { label: 'Dimensions', value: station.dimensions ?? null },
+  { label: 'Warranty', value: station.warranty_years ? `${station.warranty_years} years` : null },
+  { label: 'AC outlets', value: station.ac_ports ? String(station.ac_ports) : null },
+  { label: 'List price', value: station.price_usd_list ? money(station.price_usd_list) : null },
+  { label: 'Released', value: station.release_year ? String(station.release_year) : null },
+];
+
+const visible = specs.filter((s) => s.value !== null);
+
+// Two independent link gates:
+//  - brand programs: meta.affiliate_approved (none approved yet)
+//  - Amazon Associates: meta.amazon_tag. An explicit ASIN URL always wins.
+//    Search fallback is only for stations that are not out_of_stock/discontinued.
+const amazonTag = (db.meta as { amazon_tag?: string }).amazon_tag ?? '';
+const amazonEligible = !['out_of_stock', 'discontinued'].includes(station.availability);
+const links = (station.affiliate_links ?? {}) as Record<string, string | null>;
+const brandUrl =
+  db.meta.affiliate_approved === true &&
+  typeof links.brand_program === 'string' &&
+  links.brand_program.length > 0
+    ? links.brand_program
+    : null;
+const explicitAmazon =
+  typeof links.amazon === 'string' && links.amazon.length > 0 ? links.amazon : null;
+const amazonUrl =
+  amazonTag.length > 0
+    ? explicitAmazon ??
+      (amazonEligible
+        ? `https://www.amazon.com/s?k=${encodeURIComponent(`${station.brand} ${station.model}`)}&tag=${encodeURIComponent(amazonTag)}`
+        : null)
+    : null;
+const hasAffiliates = Boolean(brandUrl || amazonUrl);
+
+const related = db.stations
+  .filter((s) => s.brand === station.brand && s.id !== station.id)
+  .slice(0, 4);
+
+const brand = brandSlug(station.brand);
+const fridgeRuntime = runtimeFor(toStationSpec(station), fridgeHomeLoad());
+const fridgeVerdict =
+  fridgeRuntime.bindingConstraint === null
+    ? 'Clears the estimated full-size fridge load (150 W running, 1,200 W startup).'
+    : fridgeRuntime.bindingConstraint === 'surge_unverified'
+      ? `Startup not checked. The ${station.output_peak_w.toLocaleString('en-US')} W peak is a boost rating${station.source_quote ? ` (${station.source_quote})` : ''}, read ${station.verified_at}.`
+      : fridgeRuntime.bindingConstraint === 'surge'
+        ? 'Published inverter surge is below the 1,200 W fridge startup used here.'
+        : fridgeRuntime.bindingConstraint === 'continuous'
+          ? 'Continuous output is below the 150 W fridge running draw used here.'
+          : 'Capacity is short for this fridge load.';
+const tags = (station.best_for ?? []).filter(Boolean);
+
+const origin = Astro.site ?? 'https://example.com';
+const productSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Product',
+  name: `${station.brand} ${station.model}`,
+  brand: { '@type': 'Brand', name: station.brand },
+  image: new URL(`/images/stations/${station.id}.webp`, origin).href,
+  description: `Verified manufacturer specifications for the ${station.brand} ${station.model}: ${station.capacity_wh} Wh capacity, ${station.output_continuous_w} W continuous output.`,
+  url: new URL(`/stations/${station.id}/`, origin).href,
+  additionalProperty: [
+    { '@type': 'PropertyValue', name: 'Capacity', value: `${station.capacity_wh} Wh` },
+    { '@type': 'PropertyValue', name: 'Continuous output', value: `${station.output_continuous_w} W` },
+    {
+      '@type': 'PropertyValue',
+      name: station.peak_is_surge === false ? 'Boost rating' : 'Inverter surge',
+      value: `${station.output_peak_w} W`,
+    },
+  ],
+};
+
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Stations', item: new URL('/stations/', origin).href },
+    { '@type': 'ListItem', position: 2, name: `${station.brand} ${station.model}` },
+  ],
+};
+---
+
+<Base
+  title={`${station.brand} ${station.model} specs`}
+  description={`${station.brand} ${station.model}: ${station.capacity_wh} Wh, ${station.output_continuous_w} W continuous. Specs from the manufacturer page, verified ${station.verified_at}.`}
+  ogImage={`/images/stations/${station.id}.webp`}
+>
+  <script type="application/ld+json" set:html={JSON.stringify(productSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+  <article class="mx-auto max-w-3xl px-4 py-16">
+    <nav aria-label="Breadcrumb" class="text-sm text-ink-500 dark:text-ink-400">
+      <a href="/stations/" class="hover:text-ink-900 dark:hover:text-white">Stations</a>
+      <span aria-hidden="true"> / </span>
+      <span>{station.brand}</span>
+    </nav>
+
+    <h1 class="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">
+      {station.brand} {station.model}
+    </h1>
+
+    <figure class="mt-8 overflow-hidden rounded-[var(--radius-card)] border border-ink-200 bg-white p-6 dark:border-ink-800 dark:bg-ink-900">
+      <img
+        src={`/images/stations/${station.id}.webp`}
+        alt={`${station.brand} ${station.model} portable power station`}
+        width="480"
+        height="360"
+        class="mx-auto h-auto max-h-72 w-auto object-contain"
+        fetchpriority="high"
+      />
+    </figure>
+
+    {
+      station.availability === 'out_of_stock' && (
+        <p class="mt-4 inline-block rounded-[var(--radius-control)] bg-amber-accent-100 px-3 py-1.5 text-sm text-amber-accent-700">
+          Status: out of stock on the manufacturer page when last checked
+        </p>
+      )
+    }
+    {
+      station.availability === 'discontinued' && (
+        <p class="mt-4 inline-block rounded-[var(--radius-control)] bg-amber-accent-100 px-3 py-1.5 text-sm text-amber-accent-700">
+          Status: discontinued
+        </p>
+      )
+    }
+    {
+      station.availability === 'refurb_only' && (
+        <p class="mt-4 inline-block rounded-[var(--radius-control)] bg-amber-accent-100 px-3 py-1.5 text-sm text-amber-accent-700">
+          Status: refurbished units only
+        </p>
+      )
+    }
+
+    <dl class="mt-10 grid gap-px overflow-hidden rounded-[var(--radius-card)] border border-ink-200 bg-ink-200 sm:grid-cols-2 dark:border-ink-800 dark:bg-ink-800">
+      {
+        visible.map((spec) => (
+          <div class="bg-white p-5 dark:bg-ink-900">
+            <dt class="text-sm text-ink-500 dark:text-ink-400">{spec.label}</dt>
+            <dd class="tabular mt-1 text-lg font-medium">{spec.value}</dd>
+          </div>
+        ))
+      }
+    </dl>
+
+    <VerifiedStamp verifiedAt={station.verified_at} sourceUrl={station.source_url} />
+    {
+      station.source_quote ? (
+        <p class="mt-2 max-w-[68ch] text-xs text-ink-500 dark:text-ink-400">
+          Peak ruling: {station.peak_is_surge === false ? 'boost, not motor start' : 'inverter surge'}.
+          {' '}
+          {station.source_quote}. See
+          <a href="/guides/surge-vs-boost/" class="underline">surge versus boost</a>.
+        </p>
+      ) : null
+    }
+    {station.notes ? <p class="mt-2 text-xs text-ink-500 dark:text-ink-400">{station.notes}</p> : null}
+
+    {
+      tags.length > 0 && (
+        <p class="mt-6 text-sm text-ink-600 dark:text-ink-300">
+          <span class="font-medium text-ink-900 dark:text-ink-100">Recorded uses: </span>
+          {tags.map((t) => bestForLabel(t)).join(', ')}.
+          Those tags come from the manufacturer positioning on the source page, not from a test.
+        </p>
+      )
+    }
+
+    <section class="mt-10 rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+      <h2 class="text-lg font-semibold tracking-tight">This fridge load</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">{fridgeVerdict}</p>
+      <p class="mt-4 text-sm">
+        <a
+          href={`/stations/${station.id}/refrigerator/`}
+          class="text-moss-700 underline dark:text-moss-300"
+        >
+          Full refrigerator check
+        </a>
+        {brand ? (
+          <>
+            {' · '}
+            <a href={`/brands/${brand}/`} class="text-moss-700 underline dark:text-moss-300">
+              All {station.brand} models
+            </a>
+          </>
+        ) : null}
+      </p>
+    </section>
+
+    {
+      hasAffiliates && (
+        <div class="mt-12">
+          <p class="text-xs text-ink-500 dark:text-ink-400">
+            Disclosure: we may earn a commission if you buy through these links. It does not change
+            the specifications listed above or the calculator's output.
+          </p>
+          <div class="mt-4 flex flex-wrap gap-3">
+            {brandUrl && (
+              <a
+                href={brandUrl}
+                rel="sponsored nofollow noopener"
+                target="_blank"
+                class="press rounded-[var(--radius-control)] bg-moss-700 px-5 py-3 text-sm font-semibold text-white hover:bg-moss-600"
+              >
+                View at {station.brand}
+              </a>
+            )}
+            {amazonUrl && (
+              <a
+                href={amazonUrl}
+                rel="sponsored nofollow noopener"
+                target="_blank"
+                class="press rounded-[var(--radius-control)] bg-moss-700 px-5 py-3 text-sm font-semibold text-white hover:bg-moss-600"
+              >
+                Check price on Amazon
+              </a>
+            )}
+          </div>
+        </div>
+      )
+    }
+
+    {
+      !hasAffiliates && (
+        <p class="mt-12 rounded-[var(--radius-card)] border border-dashed border-ink-200 p-5 text-sm text-ink-500 dark:border-ink-700 dark:text-ink-400">
+          No purchase link is listed for this model. We only publish affiliate links for programs
+          that have approved this site, and we do not link to unapproved programs.
+        </p>
+      )
+    }
+
+    <div class="mt-10">
+      <Disclaimer />
+    </div>
+
+    <p class="mt-10 text-sm">
+      <a href={`/calculator/#calculator?station=${station.id}`} class="text-moss-700 underline dark:text-moss-300">
+        Check whether this model covers your load
+      </a>
+    </p>
+
+    {
+      related.length > 0 && (
+        <section class="mt-14">
+          <h2 class="text-lg font-semibold">Other {station.brand} models</h2>
+          <ul class="mt-4 grid gap-3 sm:grid-cols-2">
+            {related.map((s) => (
+              <li>
+                <a
+                  href={`/stations/${s.id}/`}
+                  class="flex items-center gap-3 rounded-[var(--radius-control)] border border-ink-200 p-3 hover:border-moss-500 dark:border-ink-800"
+                >
+                  <img
+                    src={`/images/stations/${s.id}.webp`}
+                    alt=""
+                    width="64"
+                    height="48"
+                    class="h-12 w-16 object-contain"
+                  />
+                  <span>
+                    <span class="block text-sm font-semibold">{s.model}</span>
+                    <span class="tabular text-xs text-ink-500">
+                      {s.capacity_wh.toLocaleString('en-US')} Wh · {s.output_continuous_w} W
+                    </span>
+                  </span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </article>
+</Base>

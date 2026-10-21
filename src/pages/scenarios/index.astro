@@ -1,0 +1,63 @@
+---
+/**
+ * Scenario index.
+ *
+ * A short list of hand-written loads. This is not a generated page farm: each
+ * entry below was written to answer one search-shaped question, and each one
+ * links to the calculator with the load already filled in.
+ */
+import Base from '../../layouts/Base.astro';
+import { scenarios } from '../../data/scenarios.ts';
+---
+
+<Base
+  title="Sizing scenarios"
+  description="Worked portable power station loads: a CPAP night, a fridge outage, a camping day, and a power tool off grid. Each one names the limit that binds first."
+>
+  <section class="mx-auto max-w-6xl px-4 py-14">
+    <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">Sizing scenarios</h1>
+    <p class="mt-4 max-w-[68ch] text-lg leading-7 text-ink-600 dark:text-ink-300">
+      Each scenario below is a worked load with the reasoning shown: which devices, how many hours,
+      what the daily watt-hours come to, and which limit fails first. Every one of them opens in the
+      calculator with the load already filled in, so you can change a number and watch the answer
+      move.
+    </p>
+    <p class="mt-3 max-w-[68ch] text-sm text-ink-500 dark:text-ink-400">
+      Device wattages come from the library on the calculator page, and most of them are published
+      engineering ranges rather than measurements. Treat every figure as a planning estimate.
+    </p>
+
+    <div class="mt-10 grid gap-4 sm:grid-cols-2">
+      {
+        scenarios.map((s) => (
+          <article class="flex flex-col rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+            <h2 class="text-xl font-semibold tracking-tight">
+              <a href={`/scenarios/${s.id}/`} class="hover:text-moss-700 dark:hover:text-moss-300">
+                {s.title}
+              </a>
+            </h2>
+            <p class="mt-1 text-sm font-medium text-moss-700 dark:text-moss-300">{s.question}</p>
+            <p class="mt-3 flex-1 text-sm leading-6 text-ink-600 dark:text-ink-300">{s.lede}</p>
+            <p class="mt-4 text-sm">
+              <a
+                href={`/scenarios/${s.id}/`}
+                class="press inline-block min-h-11 rounded-[var(--radius-control)] border border-ink-200 px-3 py-2 font-medium hover:border-moss-500 dark:border-ink-700"
+              >
+                See the worked load
+              </a>
+            </p>
+          </article>
+        ))
+      }
+    </div>
+
+    <p class="mt-10 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+      These are the loads people ask about most often, not a generated list. If your load is not here,
+      the
+      <a href="/calculator/" class="text-moss-700 underline dark:text-moss-300">calculator</a>
+      takes any combination, and the
+      <a href="/methodology/" class="text-moss-700 underline dark:text-moss-300">methodology</a>
+      page records the formulas and constants behind the numbers.
+    </p>
+  </section>
+</Base>

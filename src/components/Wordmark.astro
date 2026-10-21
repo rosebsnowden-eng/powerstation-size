@@ -1,0 +1,25 @@
+---
+/**
+ * Stacked wordmark: POWERSTATION over SIZE. The I is a two-prong plug
+ * kerned as a letter stem, not a separate icon with gaps.
+ */
+interface Props {
+  compact?: boolean;
+}
+
+const { compact = false } = Astro.props;
+---
+
+<span class:list={['wordmark', compact && 'wordmark--compact']} aria-hidden="true">
+  <span class="wordmark-top">PowerStation</span>
+  <span class="wordmark-bottom">
+    <span>S</span>
+    <svg class="wordmark-plug" viewBox="0 0 8 24" fill="currentColor" aria-hidden="true">
+      <rect x="1.4" y="0" width="1.8" height="5.4" rx="0.5" />
+      <rect x="4.8" y="0" width="1.8" height="5.4" rx="0.5" />
+      <rect x="0.6" y="6.2" width="6.8" height="17.8" rx="1.6" />
+    </svg>
+    <span>ZE</span>
+  </span>
+</span>
+<span class="sr-only">PowerStation Size</span>

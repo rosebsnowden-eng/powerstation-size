@@ -1,0 +1,42 @@
+---
+import Base from '../../layouts/Base.astro';
+import SpecTable from '../../components/SpecTable.astro';
+import db from '../../data/power-stations.json';
+
+const stations = db.stations.filter((s) => s.availability !== 'discontinued');
+const listedCount = stations.length;
+const verifiedCount = db.stations.length;
+---
+
+<Base
+  title="Verified portable power station specs"
+  description="Jackery, BLUETTI, Anker SOLIX, and EcoFlow specs from manufacturer pages. Capacity, continuous watts, and surge versus boost labelled separately."
+>
+  <section class="mx-auto max-w-6xl px-4 py-10">
+    <h1 class="text-3xl font-semibold tracking-tight md:text-4xl">Verified portable power station specs</h1>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      {listedCount} current models, each read from the manufacturer page named on its detail view.
+      {verifiedCount - listedCount > 0
+        ? ` ${verifiedCount - listedCount} discontinued record stays in the database for the calculator's source trail, but is hidden here.`
+        : ''}
+      Models whose shop URL redirected to a different product, or whose only "peak" was a resistive
+      boost with no separate surge figure, are absent. A peak marked as boost is stored, and it is
+      not used to decide whether a motor will start. List price is hidden when the manufacturer page
+      did not publish one.
+    </p>
+
+    <div class="mt-10">
+      <SpecTable stations={stations} />
+    </div>
+    <p class="mt-8 max-w-[68ch] text-sm">
+      Filter by brand:
+      <a class="text-moss-700 underline dark:text-moss-300" href="/brands/ecoflow/">EcoFlow</a>,
+      <a class="text-moss-700 underline dark:text-moss-300" href="/brands/jackery/">Jackery</a>,
+      <a class="text-moss-700 underline dark:text-moss-300" href="/brands/bluetti/">BLUETTI</a>,
+      <a class="text-moss-700 underline dark:text-moss-300" href="/brands/anker-solix/">Anker SOLIX</a>.
+      Each model also has a
+      refrigerator page that runs the same surge check as the
+      <a class="text-moss-700 underline dark:text-moss-300" href="/calculator/">calculator</a>.
+    </p>
+  </section>
+</Base>

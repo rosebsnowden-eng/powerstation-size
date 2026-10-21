@@ -1,0 +1,464 @@
+---
+/**
+ * GEO/SEO explainer modeled on the EtG 24-hour page:
+ * anxious question → short answer → myth → math table → three scenarios →
+ * calculator. Specs and hours come from the catalog, not a lab.
+ */
+import Base from '../../layouts/Base.astro';
+import Disclaimer from '../../components/Disclaimer.astro';
+import db from '../../data/power-stations.json';
+import { site } from '../../data/site.ts';
+import { getScenario, analyzeScenario, scenarioQuery } from '../../data/scenarios.ts';
+import { amazonUrlFor, isCurrent, toStationSpec } from '../../lib/catalog.ts';
+import { runtimeFor } from '../../lib/calculate.ts';
+
+const catalog = db.stations.filter(isCurrent);
+const amazonTag = (db.meta as { amazon_tag?: string }).amazon_tag ?? '';
+const home = getScenario('fridge-outage');
+const camp = getScenario('camping-day');
+if (!home || !camp) throw new Error('fridge scenarios missing');
+const homeAnalysis = analyzeScenario(home, catalog);
+const campAnalysis = analyzeScenario(camp, catalog);
+
+const n = (value: number) => Math.round(value).toLocaleString('en-US');
+const hours = (h: number) => `${h.toFixed(1)} h`;
+
+function constraintLabel(constraint: string | null): string {
+  if (constraint === 'surge') return 'Startup blocked';
+  if (constraint === 'surge_unverified') return 'Boost only, not checked';
+  if (constraint === 'continuous') return 'Continuous output short';
+  if (constraint === 'capacity') return 'Capacity short';
+  return 'Clears this load';
+}
+
+const pickIds = [
+  'bluetti-elite-100-v2',
+  'jackery-explorer-1000-v2',
+  'anker-solix-c1000',
+] as const;
+
+const picks = pickIds.map((id) => {
+  const station = catalog.find((s) => s.id === id);
+  if (!station) throw new Error(`fridge explainer missing ${id}`);
+  return {
+    station,
+    amazon: amazonUrlFor(station, amazonTag),
+    home: runtimeFor(toStationSpec(station), homeAnalysis.rows),
+    camp: runtimeFor(toStationSpec(station), campAnalysis.rows),
+  };
+});
+
+const faq = [
+  {
+    q: 'Can a portable power station run a refrigerator?',
+    a: `Yes, if it clears three checks: about ${n(homeAnalysis.plan.recommendedWh)} Wh for an eight-hour home-fridge outage in this catalog, enough continuous watts for ~150 W running, and a published inverter surge at or above ~1,200 W. A 2,000 W peak labelled X-Boost, Power Lifting, or SurgePad is not used here as a motor start.`,
+  },
+  {
+    q: 'How many watt-hours to run a fridge for 8 hours?',
+    a: 'A full-size fridge at 150 W and 35 percent duty uses about 420 Wh in eight hours before inverter loss. After 85 percent efficiency and a 20 percent reserve, this catalog shops about 826 Wh, plus router and lights in the worked example.',
+  },
+  {
+    q: 'Why does a fridge need so much more peak than running watts?',
+    a: 'The compressor motor draws a brief inrush when it starts, often several times the running wattage. Energy in the battery does not start that motor. Inverter surge does.',
+  },
+  {
+    q: 'Will a 2,000 W power station start my fridge?',
+    a: 'Only if that 2,000 W is inverter surge. If the spec sheet calls it boost, X-Boost, SurgePad, or Power Lifting, this site treats motor start as unverified.',
+  },
+  {
+    q: 'Is a 12V camping fridge easier than a home fridge?',
+    a: 'Yes. The camping example uses about 55 W running and ~500 W start. Mid-size stations that publish inverter surge usually clear it. Capacity, not output, is the usual limit.',
+  },
+];
+
+const origin = Astro.site ?? site.url;
+const path = '/guides/can-a-portable-power-station-run-a-refrigerator/';
+const articleSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'Article',
+  headline: 'Can a portable power station run a refrigerator?',
+  description:
+    'Yes if it clears capacity, continuous watts, and inverter surge. A marketing peak labelled boost is not a fridge start. Worked estimates for a home fridge, a 12V camping fridge, and Anker C1000.',
+  url: new URL(path, origin).href,
+  publisher: { '@type': 'Organization', name: site.name },
+  author: { '@type': 'Person', name: site.publisherName },
+};
+const faqSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: faq.map((item) => ({
+    '@type': 'Question',
+    name: item.q,
+    acceptedAnswer: { '@type': 'Answer', text: item.a },
+  })),
+};
+
+const homeHref = `/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(home))}&days=1`;
+const campHref = `/calculator/#calculator?load=${encodeURIComponent(scenarioQuery(camp))}&days=1`;
+---
+
+<Base
+  title="Can a portable power station run a refrigerator?"
+  description="A home fridge needs inverter surge, not a boost rating. This page sizes an 8-hour outage (~826 Wh, ~1,200 W start) and a 12V camping day, then names which verified stations clear those loads."
+  canonicalPath={path}
+  ogImage="/images/guides/can-a-portable-power-station-run-a-refrigerator/cover.png"
+>
+  <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
+  <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />
+
+  <article class="mx-auto max-w-3xl px-4 py-16">
+    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-moss-700 dark:text-moss-300">Fridge backup</p>
+    <h1 class="mt-3 text-3xl font-semibold tracking-tight md:text-4xl">
+      Can a portable power station run a refrigerator?
+    </h1>
+    <p class="mt-6 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      The power is out. The fridge is still full. You need the compressor to start, not a watt-hour
+      average on a spec sheet.
+    </p>
+    <figure class="mt-8">
+      <img
+        src="/images/guides/can-a-portable-power-station-run-a-refrigerator/cover.png"
+        alt="Pencil sketch of a home refrigerator next to a small portable power station"
+        width="1024"
+        height="1024"
+        class="w-full h-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800"
+      />
+    </figure>
+
+    <aside class="mt-8 rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 text-sm dark:border-ink-800 dark:bg-ink-900">
+      <p class="font-semibold text-ink-900 dark:text-ink-100">Editorial note</p>
+      <p class="mt-2 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        This page is maintained by {site.name} and uses the same formulas as the
+        <a href="/calculator/" class="text-moss-700 underline dark:text-moss-300">calculator</a>.
+        Fridge watts are engineering ranges, not a measurement of your appliance. It is not
+        electrical advice. Never backfeed a wall outlet.
+      </p>
+      <p class="mt-2 text-xs text-ink-500">
+        Specs transcribed from manufacturer pages. Hours are estimates.
+        <a href="/methodology/" class="underline">Methodology</a>.
+      </p>
+    </aside>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">The short answer</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        For a full-size fridge at 150 W running, 35 percent duty, and about 1,200 W startup, shop
+        roughly {n(homeAnalysis.plan.recommendedWh)} Wh and a station that publishes inverter surge
+        at or above 1,200 W. Continuous output is easy. The start is not.
+      </p>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        A 12V camping fridge is a different machine: about 500 W start. Many mid-size packs that
+        publish surge will clear it. Anker C1000's 2,400 W figure is SurgePad. This catalog does
+        not treat that as a compressor start.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">What a fridge actually draws</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        A refrigerator is a compressor with a thermostat, not a 150 W heater. Most of the hour it
+        sits idle. When the thermostat calls, the motor starts, draws a spike, then settles to
+        running watts. Energy in watt-hours is the easy part. The spike is why a station with
+        enough battery can still click and fail.
+      </p>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        This site splits those into three checks: watt-hours, continuous watts, inverter surge.
+        Passing one is not passing the others.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">The 2,000 W number is misleading</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Search this topic and you will see "2,000 W output runs a fridge" repeated on retail pages.
+        That claim skips the label next to the number.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">The context behind "peak watts"</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Some manufacturers publish inverter surge: the inverter can hold a motor inrush for a short
+        time. Others publish a resistive boost (X-Boost, Power Lifting, SurgePad) that the same
+        page limits to heat-generating loads. Both can print 2,000 W or 2,400 W. Only the first is
+        used here against a compressor.
+      </p>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Think of it like a car's top speed. Accurate on a test track. Useless if the number is for
+        a different gear. The
+        <a href="/guides/surge-vs-boost/" class="text-moss-700 underline dark:text-moss-300">surge versus boost</a>
+        table lists which verified models publish which kind of peak.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">How the hours are calculated</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        The home example is eight hours of fridge, router, lights, and a phone charge. Raw energy
+        is 585 Wh. After 85 percent inverter efficiency and a 20 percent reserve, the shop figure
+        is {n(homeAnalysis.plan.recommendedWh)} Wh. Usable capacity on a match is 85 percent of
+        nameplate.
+      </p>
+      <div class="mt-6 overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+        <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+          <caption class="sr-only">Home fridge outage load used on this page</caption>
+          <thead>
+            <tr class="border-b border-ink-200 dark:border-ink-800">
+              <th scope="col" class="px-4 py-3 font-semibold">Device</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Running</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Duty</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Energy</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Start</th>
+            </tr>
+          </thead>
+          <tbody>
+            {
+              homeAnalysis.sizing.perDevice.map((row) => (
+                <tr class="border-b border-ink-100 dark:border-ink-800/60">
+                  <th scope="row" class="px-4 py-3 font-medium">{row.label}</th>
+                  <td class="tabular px-4 py-3">{row.watts} W</td>
+                  <td class="tabular px-4 py-3">{Math.round(row.dutyCycle * 100)}%</td>
+                  <td class="tabular px-4 py-3">{n(row.dailyWh)} Wh</td>
+                  <td class="tabular px-4 py-3">{row.surgeWatts ? `${n(row.surgeWatts)} W` : '—'}</td>
+                </tr>
+              ))
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-3 text-xs text-ink-500">
+        Fridge watts are an estimated engineering range. Your compressor may draw more or less.
+        <a href={homeHref} class="underline">Open this load in the calculator</a>.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Home fridge, 12V fridge, or a boost pack</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        The question is not only "will it run." It changes with the compressor and with whether the
+        peak on the box is surge.
+      </p>
+      <figure class="mt-6">
+        <img
+          src="/images/guides/can-a-portable-power-station-run-a-refrigerator/infographic.png"
+          alt="Three scenarios: home fridge needs inverter surge, 12V camping fridge is easier, boost-only peaks leave motor start unverified"
+          width="1024"
+          height="1024"
+          class="w-full h-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800"
+        />
+        <figcaption class="mt-2 text-xs text-ink-500">
+          Same numbers as the calculator on this page. A green check is not a lab result.
+        </figcaption>
+      </figure>
+      <div class="mt-6 overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 dark:border-ink-800">
+        <table class="w-full border-collapse bg-white text-left text-sm dark:bg-ink-900">
+          <thead>
+            <tr class="border-b border-ink-200 dark:border-ink-800">
+              <th scope="col" class="px-4 py-3 font-semibold">Load</th>
+              <th scope="col" class="px-4 py-3 font-semibold">What it usually means</th>
+              <th scope="col" class="px-4 py-3 font-semibold">Next</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">Home fridge, 8 h</th>
+              <td class="px-4 py-3">
+                Shop about {n(homeAnalysis.plan.recommendedWh)} Wh. Start ~{n(homeAnalysis.sizing.peakSurgeW)} W.
+                Need published inverter surge.
+              </td>
+              <td class="px-4 py-3">
+                <a href={homeHref} class="text-moss-700 underline dark:text-moss-300">Run the calculator</a>
+              </td>
+            </tr>
+            <tr class="border-b border-ink-100 dark:border-ink-800/60">
+              <th scope="row" class="px-4 py-3 font-medium">12V camping fridge, 12 h</th>
+              <td class="px-4 py-3">
+                Shop about {n(campAnalysis.plan.recommendedWh)} Wh. Start ~{n(campAnalysis.sizing.peakSurgeW)} W.
+                Capacity usually binds first.
+              </td>
+              <td class="px-4 py-3">
+                <a href="/guides/camping-power-station/" class="text-moss-700 underline dark:text-moss-300">Camping picks</a>
+              </td>
+            </tr>
+            <tr>
+              <th scope="row" class="px-4 py-3 font-medium">Boost-only peak</th>
+              <td class="px-4 py-3">
+                Hours may look fine. Motor start stays unverified. C1000 is the worked example.
+              </td>
+              <td class="px-4 py-3">
+                <a href="/guides/anker-solix-c1000-vs-bluetti-elite-100-v2/" class="text-moss-700 underline dark:text-moss-300">C1000 vs Elite 100 V2</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Three stations on the same home-fridge load</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Same calculator rows. Hours use 85 percent usable capacity. Affiliate links may earn a
+        commission.
+      </p>
+      <ol class="mt-8 space-y-6">
+        {
+          picks.map((pick, i) => (
+            <li class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-moss-700 dark:text-moss-300">
+                Scenario {i + 1}
+              </p>
+              <div class="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start">
+                <img
+                  src={`/images/stations/${pick.station.id}.webp`}
+                  alt={`${pick.station.brand} ${pick.station.model}`}
+                  width="160"
+                  height="120"
+                  class="h-24 w-32 shrink-0 object-contain"
+                />
+                <div class="min-w-0 flex-1">
+                  <h3 class="text-lg font-semibold">
+                    {pick.station.brand} {pick.station.model}
+                  </h3>
+                  <p class="tabular mt-1 text-sm text-ink-500">
+                    {n(pick.station.capacity_wh)} Wh · {n(pick.station.output_continuous_w)} W continuous
+                    {pick.station.peak_is_surge === false
+                      ? ` · ${n(pick.station.output_peak_w)} W boost`
+                      : ` · ${n(pick.station.output_peak_w)} W inverter surge`}
+                  </p>
+                  <dl class="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                      <dt class="text-xs text-ink-500">Home fridge (est.)</dt>
+                      <dd class="font-semibold">{constraintLabel(pick.home.bindingConstraint)}</dd>
+                      <dd class="tabular text-xs text-ink-500">{hours(pick.home.averageHours)}</dd>
+                    </div>
+                    <div>
+                      <dt class="text-xs text-ink-500">Camping 12V (est.)</dt>
+                      <dd class="font-semibold">{constraintLabel(pick.camp.bindingConstraint)}</dd>
+                      <dd class="tabular text-xs text-ink-500">{hours(pick.camp.averageHours)}</dd>
+                    </div>
+                  </dl>
+                  <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+                    {pick.amazon ? (
+                      <a
+                        href={pick.amazon}
+                        rel="sponsored nofollow noopener"
+                        target="_blank"
+                        class="press inline-flex justify-center rounded-[var(--radius-control)] bg-moss-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss-600"
+                      >
+                        Check price on Amazon
+                      </a>
+                    ) : null}
+                    <a
+                      href={`/stations/${pick.station.id}/`}
+                      class="press inline-flex justify-center rounded-[var(--radius-control)] border border-ink-200 px-4 py-2.5 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+                    >
+                      Full specs
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">The surge label changes everything</h2>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        This is the factor retail copy skips. Elite 100 V2 and Explorer 1000 v2 publish inverter
+        surge and clear the home-fridge start in this catalog (about 10 hours estimated). C1000
+        holds similar watt-hours. Its peak is SurgePad, so the same load is surge-unverified.
+      </p>
+      <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        If you only need a CPAP or phone charging, C1000 still covers those estimates. Do not buy
+        it to start a compressor on the 2,400 W print.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">What will not help</h2>
+      <h3 class="mt-6 text-base font-semibold">A bigger battery with the same inverter</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Extra watt-hours extend hours after the compressor starts. They do not start it. A 2 kWh
+        pack with a boost-only peak still fails the surge check on this site.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Matching running watts only</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        150 W continuous is common. The 1,200 W start is the gate. Spec sheets that quote only
+        output without saying surge versus boost are incomplete for this job.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Plugging the station into a wall outlet</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Never backfeed household wiring through a wall or dryer outlet. Whole-home backup needs a
+        manufacturer-approved transfer or isolation system, installed by a qualified electrician
+        where required.
+      </p>
+      <h3 class="mt-6 text-base font-semibold">Time, if the inverter cannot start the motor</h3>
+      <p class="mt-3 max-w-[68ch] text-ink-600 dark:text-ink-300">
+        Waiting does not change a boost rating into surge. Swap the station, or run a 12V fridge
+        that this catalog will actually check.
+      </p>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Frequently asked questions</h2>
+      <div class="mt-6">
+        {
+          faq.map((item, index) => (
+            <details class="border-b border-ink-200 py-5 dark:border-ink-800" open={index === 0}>
+              <summary class="cursor-pointer text-lg font-semibold tracking-tight">{item.q}</summary>
+              <p class="mt-3 max-w-[72ch] text-base leading-7 text-ink-600 dark:text-ink-300">{item.a}</p>
+            </details>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">Related reading</h2>
+      <ul class="mt-4 space-y-2 text-sm">
+        <li>
+          <a href="/guides/watts-vs-watt-hours/" class="text-moss-700 underline dark:text-moss-300">Watts vs watt-hours</a>
+        </li>
+        <li>
+          <a href="/guides/surge-vs-boost/" class="text-moss-700 underline dark:text-moss-300">Inverter surge versus boost</a>
+        </li>
+        <li>
+          <a href="/guides/anker-solix-c1000-vs-bluetti-elite-100-v2/" class="text-moss-700 underline dark:text-moss-300">C1000 vs Elite 100 V2</a>
+        </li>
+        <li>
+          <a href="/guides/camping-power-station/" class="text-moss-700 underline dark:text-moss-300">Camping power station picks</a>
+        </li>
+        <li>
+          <a href="/scenarios/fridge-outage/" class="text-moss-700 underline dark:text-moss-300">Fridge outage scenario</a>
+        </li>
+        <li>
+          <a href="/methodology/" class="text-moss-700 underline dark:text-moss-300">Calculator methodology</a>
+        </li>
+      </ul>
+    </section>
+
+    <section class="mt-12 rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+      <h2 class="text-lg font-semibold tracking-tight">Calculate your own estimate</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Change fridge watts, hours, or drop the router. The result names which limit fails first.
+      </p>
+      <div class="mt-4 flex flex-col gap-2 sm:flex-row">
+        <a
+          href={homeHref}
+          class="press inline-flex justify-center rounded-[var(--radius-control)] bg-moss-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss-600"
+        >
+          Home fridge load
+        </a>
+        <a
+          href={campHref}
+          class="press inline-flex justify-center rounded-[var(--radius-control)] border border-ink-200 px-4 py-2.5 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+        >
+          12V camping load
+        </a>
+      </div>
+    </section>
+
+    <div class="mt-10">
+      <Disclaimer electrical />
+    </div>
+  </article>
+</Base>

@@ -1,0 +1,1226 @@
+---
+/**
+ * Live sizing dashboard.
+ * Interaction target: PowerGen-style instant add / live recalc, plus duty cycle,
+ * surge, verified catalog matching, and solar coverage they do not check.
+ */
+import { devices } from '../data/devices.ts';
+import db from '../data/power-stations.json';
+import { scenarios, scenarioQuery } from '../data/scenarios.ts';
+import Disclaimer from './Disclaimer.astro';
+
+const deviceIcons: Record<string, string> = {
+  'cpap-no-humidifier':
+    'M8 11h8a3 3 0 0 1 3 3v2a4 4 0 0 1-4 4h-6a4 4 0 0 1-4-4v-2a3 3 0 0 1 3-3Zm2.5-5.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 0 1-3 0ZM9 8.2c.7.5 1.6.8 3 .8s2.3-.3 3-.8',
+  'cpap-humidifier':
+    'M8 12h8a3 3 0 0 1 3 3v1.5a4.5 4.5 0 0 1-4.5 4.5h-5A4.5 4.5 0 0 1 5 16.5V15a3 3 0 0 1 3-3Zm4-6.5a2 2 0 0 1 0 4M9 8c.8.6 1.8 1 3 1s2.2-.4 3-1M10 19.5c.4.8 1.1 1.5 2 1.5s1.6-.7 2-1.5',
+  'fridge-home':
+    'M8 3.5h8A1.5 1.5 0 0 1 17.5 5v14A1.5 1.5 0 0 1 16 20.5H8A1.5 1.5 0 0 1 6.5 19V5A1.5 1.5 0 0 1 8 3.5ZM7 11h10M8.8 6.5v2M8.8 13.5v2',
+  'fridge-portable':
+    'M7.5 5.5h9A1.5 1.5 0 0 1 18 7v11.5A1.5 1.5 0 0 1 16.5 20h-9A1.5 1.5 0 0 1 6 18.5V7A1.5 1.5 0 0 1 7.5 5.5ZM7 12h10M8.7 8v1.8M8.7 14.2v2M10 4h4',
+  'freezer-chest':
+    'M4.5 8.5h15A1.5 1.5 0 0 1 21 10v8.5A1.5 1.5 0 0 1 19.5 20h-15A1.5 1.5 0 0 1 3 18.5V10A1.5 1.5 0 0 1 4.5 8.5ZM12 8.5V20M5.5 6.5h13',
+  'wifi-router':
+    'M6 14.5h12A1.5 1.5 0 0 1 19.5 16v3A1.5 1.5 0 0 1 18 20.5H6A1.5 1.5 0 0 1 4.5 19v-3A1.5 1.5 0 0 1 6 14.5Zm2.2 2.4h.1M12 11.5a5 5 0 0 1 5 0M9.5 9a8 8 0 0 1 5 0M12 6.5a10.5 10.5 0 0 1 6.2 0',
+  'phone-charge':
+    'M9 3.5h6A1.5 1.5 0 0 1 16.5 5v14A1.5 1.5 0 0 1 15 20.5H9A1.5 1.5 0 0 1 7.5 19V5A1.5 1.5 0 0 1 9 3.5ZM10 5.2h4M12 17.8h.01',
+  laptop:
+    'M5 6.5h14A1.5 1.5 0 0 1 20.5 8v8H3.5V8A1.5 1.5 0 0 1 5 6.5ZM3 16.5h18v1.2A1.3 1.3 0 0 1 19.7 19H4.3A1.3 1.3 0 0 1 3 17.7v-1.2Z',
+  'led-light':
+    'M9 14.5h6M10 17h4M12 3.5A4.5 4.5 0 0 1 16.5 8c0 1.7-.8 2.9-1.8 4.1H9.3C8.3 10.9 7.5 9.7 7.5 8A4.5 4.5 0 0 1 12 3.5Z',
+  tv: 'M5 5.5h14A1.5 1.5 0 0 1 20.5 7v9A1.5 1.5 0 0 1 19 17.5H5A1.5 1.5 0 0 1 3.5 16V7A1.5 1.5 0 0 1 5 5.5ZM9 19.5h6M12 17.5v2',
+  microwave:
+    'M4.5 6.5h15A1.5 1.5 0 0 1 21 8v9.5A1.5 1.5 0 0 1 19.5 19h-15A1.5 1.5 0 0 1 3 17.5V8A1.5 1.5 0 0 1 4.5 6.5ZM15.5 8v9.5M6.5 10.5h6v5h-6zM17.4 10.2h.2M17.4 12.5h.2',
+  'coffee-maker':
+    'M8 5h8M9 5v2.2h6V5M7.5 8.5h9l-.8 8.2A2 2 0 0 1 13.7 18.5h-3.4a2 2 0 0 1-2-1.8L7.5 8.5Zm9.2 1.8H18a2.2 2.2 0 0 1 0 4.4h-1.2',
+  'space-heater':
+    'M7 4.5h10A1.5 1.5 0 0 1 18.5 6v12A1.5 1.5 0 0 1 17 19.5H7A1.5 1.5 0 0 1 5.5 18V6A1.5 1.5 0 0 1 7 4.5ZM8.5 8.5h7v6h-7zM9.5 10.2c.6-.7 1.2-.7 1.8 0s1.2.7 1.8 0 1.2-.7 1.8 0M9.5 12.6c.6-.7 1.2-.7 1.8 0s1.2.7 1.8 0 1.2-.7 1.8 0',
+  'power-tool':
+    'M4 14.5h7.5v4H4zM11.5 15.5h6.2l2.3-3H14M7 14.5V11h5.2l1.3 3.5M6.2 18.5h2.6',
+};
+
+const deviceShort: Record<string, string> = {
+  'cpap-no-humidifier': 'CPAP',
+  'cpap-humidifier': 'CPAP + heat',
+  'fridge-home': 'Fridge',
+  'fridge-portable': '12V fridge',
+  'freezer-chest': 'Freezer',
+  'wifi-router': 'Router',
+  'phone-charge': 'Phone',
+  laptop: 'Laptop',
+  'led-light': 'LED light',
+  tv: 'TV',
+  microwave: 'Microwave',
+  'coffee-maker': 'Coffee',
+  'space-heater': 'Heater',
+  'power-tool': 'Power tool',
+};
+
+const catalog = db.stations.filter((s) => s.availability !== 'discontinued');
+const amazonTag = (db.meta as { amazon_tag?: string }).amazon_tag ?? '';
+const amazonUrlFor = (s: (typeof catalog)[number]) => {
+  const explicit = (s.affiliate_links as { amazon?: string | null } | undefined)?.amazon;
+  if (typeof explicit === 'string' && explicit.length > 0) return explicit;
+  if (!amazonTag || s.availability === 'out_of_stock' || s.availability === 'discontinued') return null;
+  return `https://www.amazon.com/s?k=${encodeURIComponent(`${s.brand} ${s.model}`)}&tag=${encodeURIComponent(amazonTag)}`;
+};
+---
+
+<section id="calculator" class="scroll-mt-20">
+  <script
+    type="application/json"
+    id="station-json"
+    set:html={JSON.stringify({
+      stations: catalog.map((s) => ({
+        id: s.id,
+        brand: s.brand,
+        model: s.model,
+        capacity_wh: s.capacity_wh,
+        output_continuous_w: s.output_continuous_w,
+        output_peak_w: s.output_peak_w,
+        price_usd_list: s.price_usd_list ?? null,
+        peak_is_surge: s.peak_is_surge !== false,
+        source_quote: typeof s.source_quote === 'string' ? s.source_quote : null,
+        verified_at: s.verified_at,
+        solar_input_max_w: s.solar_input_max_w ?? null,
+        best_for: s.best_for ?? [],
+        amazon_url: amazonUrlFor(s),
+      })),
+    })}
+  />
+  <script
+    type="application/json"
+    id="device-json"
+    set:html={JSON.stringify({
+      devices: devices.map((d) => ({
+        id: d.id,
+        label: d.label,
+        typical_w: d.typical_w,
+        surge_w: d.surge_w,
+        duty_cycle: d.duty_cycle,
+        default_hours: d.default_hours,
+        group: d.group,
+        source_type: d.source_type,
+        note: d.note ?? null,
+      })),
+    })}
+  />
+
+  <div class="mb-5 grid gap-2 rounded-[var(--radius-card)] bg-ink-100 p-1 dark:bg-ink-800 sm:grid-cols-2" role="tablist" aria-label="Calculator mode">
+    <button type="button" id="mode-runtime" data-flow="runtime" role="tab" aria-selected="true" aria-controls="picker-panel" class="press min-h-12 cursor-pointer rounded-[10px] bg-moss-700 px-3 text-sm font-semibold text-white">
+      I already have a model
+    </button>
+    <button type="button" id="mode-size" data-flow="size" role="tab" aria-selected="false" aria-controls="picker-panel" class="press min-h-12 cursor-pointer rounded-[10px] px-3 text-sm font-semibold">
+      I need to size a new one
+    </button>
+  </div>
+
+  <div class="calc-layout">
+    <div class="calc-input space-y-5">
+      <div class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="text-lg font-semibold">Select appliance to test</h2>
+        <button
+          type="button"
+          id="add-custom"
+          class="press min-h-11 cursor-pointer rounded-[var(--radius-control)] border border-ink-200 px-3 py-2 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+        >
+          Add custom
+        </button>
+      </div>
+      <p class="mt-1 text-sm text-ink-500">Tap to add. Tap again to remove. Hours update as you type.</p>
+
+      <div class="preset-grid mt-4">
+        {
+          devices.map((d) => (
+            <button
+              type="button"
+              data-add-device={d.id}
+              class="preset-chip press"
+              aria-pressed="false"
+              aria-label={d.label}
+              title={d.label}
+            >
+              <span class="preset-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <path d={deviceIcons[d.id]}></path>
+                </svg>
+              </span>
+              <span class="preset-name">{deviceShort[d.id] ?? d.label}</span>
+              <span class="preset-meta tabular">{d.typical_w}W</span>
+            </button>
+          ))
+        }
+      </div>
+
+      <div class="mt-6">
+        <p class="text-sm font-semibold">Your load</p>
+        <p class="mt-1 text-sm text-ink-500">Edit watts and hours. The result updates as you type.</p>
+        <div id="load-empty" class="mt-3 rounded-[var(--radius-control)] border border-dashed border-ink-200 p-5 text-sm text-ink-500 dark:border-ink-700">
+          Nothing in the load yet. Tap an appliance above, add a custom row, or open a common load below.
+        </div>
+        <div id="load-list" class="load-table mt-3"></div>
+        <button
+          type="button"
+          id="clear-load"
+          class="press mt-3 min-h-11 cursor-pointer rounded-[var(--radius-control)] border border-ink-200 px-3 py-2 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+        >
+          Clear load
+        </button>
+      </div>
+      </div>
+
+      <details class="accordion-card rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+        <summary class="cursor-pointer text-sm font-semibold">
+          <span>Start from a common load</span>
+          <span class="acc-badge" aria-hidden="true">
+            <span class="acc-text">Show</span>
+            <svg class="acc-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </span>
+        </summary>
+        <p class="mt-3 text-xs text-ink-500 dark:text-ink-400">
+          Fills the load above, including a starting set of hours. Adjust anything afterward.
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          {
+            scenarios.map((s) => (
+              <button
+                type="button"
+                data-scenario={s.id}
+                data-load={scenarioQuery(s)}
+                data-days={String(s.backupDays)}
+                data-sun={String(s.sunHours)}
+                class="press min-h-11 cursor-pointer rounded-[var(--radius-control)] border border-ink-200 px-3 py-2 text-left text-sm hover:border-moss-500 dark:border-ink-700"
+              >
+                <span class="block font-medium">{s.title}</span>
+              </button>
+            ))
+          }
+        </div>
+      </details>
+
+      <div id="picker-panel" class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+        <p class="text-sm font-semibold">Brand and model</p>
+        <p class="mt-1 text-xs text-ink-500">Shown when you already own a station. Hidden while sizing a new one.</p>
+        <div id="brand-row" class="brand-row mt-3"></div>
+        <div id="model-grid" class="model-grid mt-4"></div>
+        <p class="mt-3 text-xs text-ink-500">Manufacturer packshots. Specs on each <a class="underline" href="/stations/">model page</a> name the source URL.</p>
+      </div>
+    </div>
+
+    <div class="calc-result space-y-4">
+      <div class="instrument rounded-[var(--radius-card)] p-5">
+        <div class="hero-runtime">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-moss-300" id="result-kicker">Estimated runtime</p>
+          <p class="hours display tabular mt-2" id="runtime-average">0 h</p>
+          <p class="mt-2 text-sm text-ink-300" id="runtime-caption">Pick a model and add a load. Hours update live.</p>
+          <p class="mt-2 text-xs text-ink-400">Calculated estimate. Not a lab runtime. Device watts are ranges.</p>
+          <p id="runtime-verdict" class="mt-3 text-base font-semibold leading-snug"></p>
+          <div id="runtime-buy" class="mt-4"></div>
+        </div>
+        <dl class="mt-6 grid grid-cols-3 gap-3 border-t border-white/10 pt-5 text-center text-sm">
+          <div>
+            <dt class="text-ink-400">Capacity</dt>
+            <dd class="tabular mt-1 font-medium" id="runtime-capacity">0 Wh</dd>
+          </div>
+          <div>
+            <dt class="text-ink-400">Load</dt>
+            <dd class="tabular mt-1 font-medium" id="runtime-load">0 W</dd>
+          </div>
+          <div>
+            <dt class="text-ink-400">If all at once</dt>
+            <dd class="tabular mt-1 font-medium" id="runtime-worst">0 h</dd>
+          </div>
+        </dl>
+        <div id="runtime-notice" class="mt-4"></div>
+        <p id="size-verdict" class="mt-5 text-sm font-semibold leading-snug">Add appliances to see which limit binds.</p>
+        <details class="result-more mt-5">
+          <summary class="cursor-pointer text-sm font-semibold text-ink-100">
+            <span>Meters, mix, and checks</span>
+            <span class="acc-badge" aria-hidden="true">
+              <span class="acc-text">Show</span>
+              <svg class="acc-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+            </span>
+          </summary>
+          <div id="size-meters" class="mt-4 space-y-4"></div>
+          <div class="stat-grid mt-5">
+            <div class="stat-card">
+              <p class="label">Daily energy</p>
+              <p class="value tabular" id="stat-daily">0 Wh</p>
+              <p class="note" id="stat-daily-note">No appliances yet</p>
+            </div>
+            <div class="stat-card">
+              <p class="label">Battery to shop</p>
+              <p class="value tabular" id="stat-battery">0 Wh</p>
+              <p class="note" id="stat-battery-note">Includes inverter loss and reserve</p>
+            </div>
+            <div class="stat-card">
+              <p class="label">Startup surge</p>
+              <p class="value tabular" id="stat-surge">0 W</p>
+              <p class="note" id="stat-surge-note">Checked against inverter surge, not boost</p>
+            </div>
+            <div class="stat-card">
+              <p class="label">Solar to cover the day</p>
+              <p class="value tabular" id="stat-solar">0 W</p>
+              <p class="note" id="stat-solar-note">Peak sun hours times the inverter efficiency you set</p>
+            </div>
+          </div>
+          <div class="mt-5 grid gap-4 sm:grid-cols-2">
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-moss-300">Energy mix</p>
+              <div class="mt-3 flex items-center gap-4">
+                <svg id="donut" viewBox="0 0 120 120" width="108" height="108" aria-hidden="true"></svg>
+                <div id="donut-legend" class="donut-legend text-xs text-ink-200"></div>
+              </div>
+            </div>
+            <div>
+              <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-moss-300">Checks</p>
+              <div id="status-list" class="status-list mt-3"></div>
+            </div>
+          </div>
+        </details>
+      </div>
+      <div id="station-matches"></div>
+
+      <details class="accordion-card rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+        <summary class="cursor-pointer text-sm font-semibold">
+          <span>Backup days, solar, and constants</span>
+          <span class="acc-badge" aria-hidden="true">
+            <span class="acc-text">Show</span>
+            <svg class="acc-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </span>
+        </summary>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2">
+          <label class="block text-sm">
+            <span class="font-medium">Backup days</span>
+            <select id="backup-days" class="mt-1 w-full cursor-pointer rounded-[var(--radius-control)] border border-ink-200 bg-white px-3 py-2 dark:border-ink-700 dark:bg-ink-950">
+              <option value="1" selected>1 day</option>
+              <option value="2">2 days</option>
+              <option value="3">3 days</option>
+              <option value="5">5 days</option>
+            </select>
+          </label>
+          <label class="block text-sm">
+            <span class="font-medium">Peak sun hours</span>
+            <select id="sun-hours" class="mt-1 w-full cursor-pointer rounded-[var(--radius-control)] border border-ink-200 bg-white px-3 py-2 dark:border-ink-700 dark:bg-ink-950">
+              <option value="3">Low (3 h) Pacific NW</option>
+              <option value="4">Moderate (4 h) Northeast</option>
+              <option value="5" selected>Average (5 h) most US</option>
+              <option value="6">High (6 h) Southwest</option>
+              <option value="7">Very high (7 h) AZ / FL</option>
+            </select>
+          </label>
+          <label class="block text-sm">
+            <span class="font-medium">Inverter efficiency</span>
+            <select id="inverter-eff" class="mt-1 w-full cursor-pointer rounded-[var(--radius-control)] border border-ink-200 bg-white px-3 py-2 dark:border-ink-700 dark:bg-ink-950">
+              <option value="0.85" selected>Typical (85%)</option>
+              <option value="0.90">Efficient (90%)</option>
+              <option value="0.80">Conservative (80%)</option>
+            </select>
+          </label>
+          <label class="block text-sm">
+            <span class="font-medium">Reserve margin</span>
+            <select id="reserve" class="mt-1 w-full cursor-pointer rounded-[var(--radius-control)] border border-ink-200 bg-white px-3 py-2 dark:border-ink-700 dark:bg-ink-950">
+              <option value="1.15">Tight (15%)</option>
+              <option value="1.2" selected>Standard (20%)</option>
+              <option value="1.35">Cold weather (35%)</option>
+            </select>
+          </label>
+          <label class="block text-sm sm:col-span-2">
+            <span class="font-medium">Solar array you already have (W)</span>
+            <input
+              id="solar-input"
+              type="number"
+              min="0"
+              step="50"
+              value="0"
+              class="tabular mt-1 w-full rounded-[var(--radius-control)] border border-ink-200 bg-white px-3 py-2 dark:border-ink-700 dark:bg-ink-950"
+            />
+          </label>
+        </div>
+        <div class="mt-4">
+          <p class="text-sm font-medium">Charging strategy</p>
+          <div class="mt-2 grid grid-cols-3 gap-1 rounded-[var(--radius-control)] bg-ink-100 p-1 dark:bg-ink-800" role="tablist" aria-label="Charging strategy">
+            <button type="button" data-charge="full" role="tab" aria-selected="true" aria-controls="charge-note" class="press min-h-11 cursor-pointer rounded-[8px] bg-moss-700 px-2 text-xs font-semibold text-white">Full solar</button>
+            <button type="button" data-charge="partial" role="tab" aria-selected="false" aria-controls="charge-note" class="press min-h-11 cursor-pointer rounded-[8px] px-2 text-xs font-semibold">Partial</button>
+            <button type="button" data-charge="ac" role="tab" aria-selected="false" aria-controls="charge-note" class="press min-h-11 cursor-pointer rounded-[8px] px-2 text-xs font-semibold">AC only</button>
+          </div>
+          <p id="charge-note" class="mt-3 text-sm text-ink-600 dark:text-ink-300"></p>
+        </div>
+      </details>
+
+      <details class="accordion-card rounded-[var(--radius-card)] border border-ink-200 bg-white p-5 dark:border-ink-800 dark:bg-ink-900">
+        <summary class="cursor-pointer text-sm font-semibold">
+          <span>Compare two models</span>
+          <span class="acc-badge" aria-hidden="true">
+            <span class="acc-text">Show</span>
+            <svg class="acc-chevron" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+          </span>
+        </summary>
+        <div class="mt-3 grid gap-3 sm:grid-cols-2">
+          <label class="block text-sm">
+            <span class="font-medium">Model A</span>
+            <select id="compare-a" class="mt-1 w-full min-h-11 cursor-pointer rounded-[var(--radius-control)] border border-ink-200 bg-white px-3 py-2 dark:border-ink-700 dark:bg-ink-950"></select>
+          </label>
+          <label class="block text-sm">
+            <span class="font-medium">Model B</span>
+            <select id="compare-b" class="mt-1 w-full min-h-11 cursor-pointer rounded-[var(--radius-control)] border border-ink-200 bg-white px-3 py-2 dark:border-ink-700 dark:bg-ink-950"></select>
+          </label>
+        </div>
+        <p id="compare-verdict" class="mt-3 text-sm font-semibold">Add devices, then pick two models.</p>
+        <div id="compare-grid" class="mt-3 grid gap-3 sm:grid-cols-2"></div>
+      </details>
+      <select id="runtime-station" class="sr-only" aria-label="Selected model"></select>
+
+      <button type="button" id="copy-link" class="press w-full min-h-12 cursor-pointer rounded-[var(--radius-control)] border border-ink-200 bg-white px-4 py-3 text-sm font-semibold hover:border-moss-500 dark:border-ink-700 dark:bg-ink-900">
+        Copy shareable link
+      </button>
+      <p id="copy-status" class="text-center text-xs text-ink-500" role="status"></p>
+      <Disclaimer medical electrical />
+    </div>
+  </div>
+</section>
+
+<script>
+  import {
+    sizeSystem,
+    runtimeFor,
+    compareStations,
+    chargePlan,
+    matchStations,
+    catalogLimit,
+    solarArrayFit,
+  } from '../lib/calculate.ts';
+  import type { DeviceInput, StationSpec, LoadSummary } from '../lib/calculate.ts';
+
+
+  interface StationRow {
+    id: string;
+    brand: string;
+    model: string;
+    capacity_wh: number;
+    output_continuous_w: number;
+    output_peak_w: number;
+    price_usd_list: number | null;
+    peak_is_surge: boolean;
+    source_quote: string | null;
+    verified_at: string;
+    solar_input_max_w: number | null;
+    best_for: string[];
+    amazon_url: string | null;
+  }
+
+  const MIX = ['#4b8b58', '#d4901f', '#2b6fff', '#c45c28', '#0f8a80', '#8f2f2a', '#5f6c62', '#1d5cad'];
+  const BRAND_TONE: Record<string, string> = {
+    Jackery: '#FF6B35',
+    BLUETTI: '#0066CC',
+    'Anker SOLIX': '#00D4AA',
+    EcoFlow: '#2B6FFF',
+  };
+
+  const stationData: StationRow[] = JSON.parse(
+    document.getElementById('station-json')?.textContent ?? '{"stations":[]}',
+  ).stations;
+
+  const deviceMeta: Record<
+    string,
+    {
+      id: string;
+      label: string;
+      typical_w: number;
+      surge_w: number | null;
+      duty_cycle: number;
+      default_hours: number;
+      source_type?: string;
+      note?: string | null;
+    }
+  > = Object.fromEntries(
+    JSON.parse(document.getElementById('device-json')?.textContent ?? '{"devices":[]}').devices.map((d: { id: string }) => [d.id, d]),
+  );
+
+  let rows: DeviceInput[] = [];
+  let chargeMode: 'full' | 'partial' | 'ac' = 'full';
+  let flow: 'runtime' | 'size' = 'runtime';
+  let currentBrand = stationData[0]?.brand ?? 'Jackery';
+  let customN = 1;
+
+  const el = {
+    list: document.getElementById('load-list') as HTMLElement,
+    empty: document.getElementById('load-empty') as HTMLElement,
+    statDaily: document.getElementById('stat-daily') as HTMLElement,
+    statDailyNote: document.getElementById('stat-daily-note') as HTMLElement,
+    statBattery: document.getElementById('stat-battery') as HTMLElement,
+    statBatteryNote: document.getElementById('stat-battery-note') as HTMLElement,
+    statSurge: document.getElementById('stat-surge') as HTMLElement,
+    statSurgeNote: document.getElementById('stat-surge-note') as HTMLElement,
+    statSolar: document.getElementById('stat-solar') as HTMLElement,
+    statSolarNote: document.getElementById('stat-solar-note') as HTMLElement,
+    sizeVerdict: document.getElementById('size-verdict') as HTMLElement,
+    sizeMeters: document.getElementById('size-meters') as HTMLElement,
+    statusList: document.getElementById('status-list') as HTMLElement,
+    donut: document.querySelector<SVGSVGElement>('#donut'),
+    donutLegend: document.getElementById('donut-legend') as HTMLElement,
+    matches: document.getElementById('station-matches') as HTMLElement,
+    picker: document.getElementById('picker-panel') as HTMLElement,
+    resultKicker: document.getElementById('result-kicker') as HTMLElement,
+    chargeNote: document.getElementById('charge-note') as HTMLElement,
+    backup: document.getElementById('backup-days') as HTMLSelectElement,
+    sun: document.getElementById('sun-hours') as HTMLSelectElement,
+    solar: document.getElementById('solar-input') as HTMLInputElement,
+    eff: document.getElementById('inverter-eff') as HTMLSelectElement,
+    reserve: document.getElementById('reserve') as HTMLSelectElement,
+    runtimeStation: document.getElementById('runtime-station') as HTMLSelectElement,
+    runtimeAverage: document.getElementById('runtime-average') as HTMLElement,
+    runtimeWorst: document.getElementById('runtime-worst') as HTMLElement,
+    runtimeCaption: document.getElementById('runtime-caption') as HTMLElement,
+    runtimeNotice: document.getElementById('runtime-notice') as HTMLElement,
+    runtimeVerdict: document.getElementById('runtime-verdict') as HTMLElement,
+    runtimeCapacity: document.getElementById('runtime-capacity') as HTMLElement,
+    runtimeLoad: document.getElementById('runtime-load') as HTMLElement,
+    runtimeBuy: document.getElementById('runtime-buy') as HTMLElement,
+    brandRow: document.getElementById('brand-row') as HTMLElement,
+    modelGrid: document.getElementById('model-grid') as HTMLElement,
+    compareA: document.getElementById('compare-a') as HTMLSelectElement,
+    compareB: document.getElementById('compare-b') as HTMLSelectElement,
+    compareVerdict: document.getElementById('compare-verdict') as HTMLElement,
+    compareGrid: document.getElementById('compare-grid') as HTMLElement,
+    copy: document.getElementById('copy-link') as HTMLElement,
+    status: document.getElementById('copy-status') as HTMLElement,
+  };
+
+  const fmt = (n: number, unit: string, digits = 0) =>
+    `${n.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 })} ${unit}`;
+  const pct = (n: number) => `${Math.round(n * 100)}%`;
+  const esc = (s: string) =>
+    s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+
+  const stationOptions = () => {
+    const brands = [...new Set(stationData.map((s) => s.brand))];
+    return brands
+      .map((brand) => {
+        const options = stationData
+          .filter((s) => s.brand === brand)
+          .map((s) => {
+            const tag = s.peak_is_surge ? 'surge verified' : 'boost, not surge';
+            return `<option value="${s.id}">${esc(s.model)} · ${s.capacity_wh.toLocaleString('en-US')} Wh · ${tag}</option>`;
+          })
+          .join('');
+        return `<optgroup label="${esc(brand)}">${options}</optgroup>`;
+      })
+      .join('');
+  };
+
+  function asSpec(station: StationRow): StationSpec {
+    return {
+      id: station.id,
+      brand: station.brand,
+      model: station.model,
+      capacity_wh: station.capacity_wh,
+      output_continuous_w: station.output_continuous_w,
+      output_peak_w: station.output_peak_w,
+      weight_lbs: null,
+      price_usd_list: station.price_usd_list,
+      best_for: [],
+      affiliate_url: station.amazon_url,
+      peak_is_surge: station.peak_is_surge,
+    };
+  }
+
+  function boostNotice(station: StationRow): string {
+    const watts = station.output_peak_w.toLocaleString('en-US');
+    const quote = station.source_quote;
+    const date = station.verified_at;
+    if (quote) {
+      return `Startup not checked. The ${watts} W peak is a boost rating (${quote}), read ${date}.`;
+    }
+    return `Startup not checked. The ${watts} W peak is a boost rating, not inverter surge, read ${date}.`;
+  }
+
+  function verdictText(constraint: string | null, name: string, station?: StationRow): string {
+    if (constraint === 'surge') return `${name} cannot start the highest-surge device. Capacity does not matter until it can.`;
+    if (constraint === 'surge_unverified') {
+      return station ? `${name}: ${boostNotice(station)}` : `${name} publishes a boost rating, not an inverter surge. A motor start is not cleared.`;
+    }
+    if (constraint === 'continuous') return `${name} cannot run this load all at once. Stagger the devices, or pick a higher continuous output.`;
+    if (constraint === 'capacity') return `${name} has no usable capacity for this load.`;
+    return `${name} covers the startup and the simultaneous draw.`;
+  }
+
+  function meter(label: string, need: string, have: string, ratio: number, warn: boolean) {
+    const width = Math.max(4, Math.min(100, Math.round(ratio * 100)));
+    const fillClass = ratio > 1 ? 'danger' : warn ? 'warn' : 'ok';
+    return `<div>
+      <div class="flex items-baseline justify-between gap-3 text-xs">
+        <span class="font-medium text-ink-100">${label}</span>
+        <span class="tabular text-ink-300">${need} / ${have}</span>
+      </div>
+      <div class="meter mt-1.5"><div class="meter-fill ${fillClass}" style="width:${width}%"></div></div>
+    </div>`;
+  }
+
+  function renderBrands() {
+    const brands = [...new Set(stationData.map((s) => s.brand))];
+    el.brandRow.innerHTML = brands
+      .map((brand) => {
+        const on = brand === currentBrand;
+        const tone = BRAND_TONE[brand] ?? '#4b8b58';
+        return `<button type="button" data-brand="${esc(brand)}" class="brand-chip press" aria-pressed="${on}" style="${on ? `background:${tone};border-color:${tone}` : ''}">${esc(brand)}</button>`;
+      })
+      .join('');
+    el.brandRow.querySelectorAll<HTMLButtonElement>('[data-brand]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        currentBrand = btn.dataset.brand ?? currentBrand;
+        const first = stationData.find((s) => s.brand === currentBrand);
+        if (first) el.runtimeStation.value = first.id;
+        renderBrands();
+        renderModels();
+        recalc();
+      });
+    });
+  }
+
+  function renderModels() {
+    const models = stationData.filter((s) => s.brand === currentBrand);
+    el.modelGrid.innerHTML = models
+      .map((s) => {
+        const on = s.id === el.runtimeStation.value;
+        return `<button type="button" data-model="${s.id}" class="model-chip press" aria-pressed="${on}">
+          <span class="model-art"><img src="/images/stations/${s.id}.webp" alt="${esc(s.brand)} ${esc(s.model)}" width="160" height="120" loading="lazy" decoding="async" /></span>
+          <span class="model-n">${esc(s.model)}</span>
+          <span class="model-s tabular">${s.capacity_wh.toLocaleString('en-US')} Wh / ${s.output_continuous_w} W${s.peak_is_surge ? '' : ' · boost'}</span>
+        </button>`;
+      })
+      .join('');
+    el.modelGrid.querySelectorAll<HTMLButtonElement>('[data-model]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        el.runtimeStation.value = btn.dataset.model ?? '';
+        renderModels();
+        recalc();
+      });
+    });
+  }
+
+  function paintPresets() {
+    const selected = new Set(rows.map((r) => r.id));
+    document.querySelectorAll<HTMLButtonElement>('[data-add-device]').forEach((btn) => {
+      const on = selected.has(btn.dataset.addDevice ?? '');
+      btn.setAttribute('aria-pressed', String(on));
+    });
+  }
+
+  function addDevice(id: string) {
+    const meta = deviceMeta[id];
+    if (!meta) return;
+    const existing = rows.findIndex((r) => r.id === id);
+    if (existing !== -1) {
+      rows.splice(existing, 1);
+    } else {
+      rows.push({
+        id: meta.id,
+        label: meta.label,
+        watts: meta.typical_w,
+        hours: meta.default_hours,
+        dutyCycle: meta.duty_cycle,
+        surgeWatts: meta.surge_w,
+      });
+    }
+    renderList();
+  }
+
+  function addCustom() {
+    rows.push({
+      id: `custom-${customN++}`,
+      label: 'Custom appliance',
+      watts: 100,
+      hours: 4,
+      dutyCycle: 1,
+      surgeWatts: null,
+    });
+    renderList();
+  }
+
+  function renderList() {
+    paintPresets();
+    el.empty.hidden = rows.length > 0;
+    el.list.innerHTML = '';
+    rows.forEach((row, index) => {
+      const dailyWh = Math.round(row.watts * row.hours * row.dutyCycle);
+      const meta = deviceMeta[row.id];
+      const sourceNote = meta?.source_type
+        ? `<p class="mt-1 text-[11px] text-ink-500">${esc(meta.source_type)}${meta.note ? ` · ${esc(meta.note)}` : ''}</p>`
+        : '';
+      const div = document.createElement('div');
+      div.className = 'load-row';
+      div.innerHTML = `
+        <div class="name-cell">
+          <div class="flex items-center justify-between gap-2">
+            <span class="field-label">Appliance</span>
+            <span data-daily-wh class="tabular rounded bg-ink-100 px-1.5 py-0.5 text-[11px] font-semibold text-moss-700 dark:bg-ink-800 dark:text-moss-300">${dailyWh} Wh/day</span>
+          </div>
+          <input class="name-input" data-field="label" data-index="${index}" value="${esc(row.label)}" aria-label="Appliance name" />
+          ${sourceNote}
+        </div>
+        <label>
+          <span class="field-label">Watts</span>
+          <input type="number" min="0" step="1" value="${row.watts}" data-field="watts" data-index="${index}" aria-label="Watts" />
+        </label>
+        <label>
+          <span class="field-label">Hours / day</span>
+          <input type="number" min="0" max="24" step="0.5" value="${row.hours}" data-field="hours" data-index="${index}" aria-label="Hours" />
+        </label>
+        <label>
+          <span class="field-label">Duty</span>
+          <select data-field="dutyCycle" data-index="${index}" aria-label="Duty cycle">
+            ${[1, 0.5, 0.4, 0.35, 0.3].map((d) => `<option value="${d}"${row.dutyCycle === d ? ' selected' : ''}>${pct(d)}</option>`).join('')}
+          </select>
+        </label>
+        <label>
+          <span class="field-label">Surge W</span>
+          <input type="number" min="0" step="50" value="${row.surgeWatts ?? ''}" placeholder="none" data-field="surgeWatts" data-index="${index}" aria-label="Surge watts" />
+        </label>
+        <button type="button" data-remove="${index}" class="load-remove press cursor-pointer" aria-label="Remove ${esc(row.label)}">Remove</button>
+      `;
+      el.list.appendChild(div);
+    });
+    recalc();
+  }
+
+  function paintDailyWh() {
+    el.list.querySelectorAll<HTMLElement>('[data-daily-wh]').forEach((badge, index) => {
+      const row = rows[index];
+      if (!row) return;
+      const dailyWh = Math.round(row.watts * row.hours * row.dutyCycle);
+      badge.textContent = `${dailyWh} Wh/day`;
+    });
+  }
+
+  function drawDonut(parts: { label: string; value: number }[]) {
+    const svg = el.donut;
+    if (!svg) return;
+    const total = parts.reduce((s, p) => s + p.value, 0);
+    svg.replaceChildren();
+    el.donutLegend.replaceChildren();
+    if (total <= 0) {
+      el.donutLegend.textContent = 'Add appliances to split the day.';
+      return;
+    }
+    const r = 44;
+    const c = 2 * Math.PI * r;
+    let offset = 0;
+    const bg = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    bg.setAttribute('cx', '60');
+    bg.setAttribute('cy', '60');
+    bg.setAttribute('r', String(r));
+    bg.setAttribute('fill', 'none');
+    bg.setAttribute('stroke', 'rgba(255,255,255,0.08)');
+    bg.setAttribute('stroke-width', '14');
+    svg.appendChild(bg);
+    parts.forEach((p, i) => {
+      const len = (p.value / total) * c;
+      const ring = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+      ring.setAttribute('cx', '60');
+      ring.setAttribute('cy', '60');
+      ring.setAttribute('r', String(r));
+      ring.setAttribute('fill', 'none');
+      ring.setAttribute('stroke', MIX[i % MIX.length]);
+      ring.setAttribute('stroke-width', '14');
+      ring.setAttribute('stroke-dasharray', `${len} ${c - len}`);
+      ring.setAttribute('stroke-dashoffset', String(-offset));
+      ring.setAttribute('transform', 'rotate(-90 60 60)');
+      svg.appendChild(ring);
+      offset += len;
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between gap-2';
+      row.innerHTML = `<span class="truncate"><span class="mr-2 inline-block h-2 w-2 rounded-sm" style="background:${MIX[i % MIX.length]}"></span>${esc(p.label)}</span><span class="tabular">${fmt(p.value, 'Wh')}</span>`;
+      el.donutLegend.appendChild(row);
+    });
+  }
+
+  function statusItem(ok: boolean, name: string, detail: string, badge: string) {
+    return `<div class="status-item ${ok ? 'ok' : 'warn'}"><div><p class="text-sm font-semibold">${name}</p><p class="text-xs">${detail}</p></div><span class="text-xs font-bold uppercase tracking-wide">${badge}</span></div>`;
+  }
+
+  function recalc() {
+    const efficiency = Number(el.eff.value);
+    const reserve = Number(el.reserve.value);
+    const backupDays = Number(el.backup.value);
+    const sunHours = Number(el.sun.value);
+    const solarInputW = Math.max(0, Number(el.solar.value) || 0);
+
+    let sizing;
+    try {
+      sizing = sizeSystem(rows, { inverterEfficiency: efficiency, reserveFactor: reserve });
+    } catch {
+      el.sizeVerdict.textContent = 'Those efficiency or reserve values are not usable.';
+      return;
+    }
+
+    const plan = chargePlan(sizing.rawDailyWh, sizing.recommendedWh, {
+      backupDays,
+      sunHours,
+      solarInputW,
+      inverterEfficiency: efficiency,
+    });
+
+    el.statDaily.textContent = fmt(sizing.rawDailyWh, 'Wh');
+    el.statDailyNote.textContent = `${rows.length} appliance${rows.length === 1 ? '' : 's'} after duty cycle`;
+    el.statBattery.textContent = fmt(plan.recommendedWh, 'Wh');
+    el.statBatteryNote.textContent = `${backupDays}-day backup · ${pct(efficiency)} inverter · ${pct(reserve - 1)} reserve`;
+    el.statSurge.textContent = fmt(sizing.peakSurgeW, 'W');
+    el.statSurgeNote.textContent = sizing.peakSurgeW ? 'Highest single-device startup' : 'No motor start in this load';
+    el.statSolar.textContent = fmt(plan.solarNeededW, 'W', 0);
+    el.statSolarNote.textContent = `${sunHours} peak sun hours times ${pct(efficiency)} inverter yield`;
+
+    if (chargeMode === 'full') {
+      el.chargeNote.textContent = `Full solar: you need about ${fmt(plan.solarNeededW, 'W')} of panels to replace ${fmt(sizing.rawDailyWh, 'Wh')} each day.`;
+    } else if (chargeMode === 'partial') {
+      el.chargeNote.textContent = solarInputW
+        ? `Partial solar: a ${fmt(solarInputW, 'W')} array covers ${pct(plan.solarCoveragePct)} of the day. The rest has to come from AC charging.`
+        : 'Partial solar: enter the array you have. Coverage of the day updates live.';
+    } else {
+      el.chargeNote.textContent = 'AC only: size the battery for the backup days. Panels are optional.';
+    }
+
+    // A solar number the station cannot accept is a number that misleads. The
+    // limit is only checked for the model actually selected, and only when the
+    // manufacturer publishes one.
+    const selected = stationData.find((s) => s.id === el.runtimeStation.value);
+    const fit = solarArrayFit(plan.solarNeededW, selected?.solar_input_max_w ?? null);
+    if (selected && fit && !fit.fits && chargeMode !== 'ac') {
+      el.chargeNote.textContent += ` The ${esc(selected.model)} accepts up to ${fmt(fit.maxInputW, 'W')} of solar input, so a ${fmt(plan.solarNeededW, 'W')} array will not all fit. Size the array to that limit and plan on AC charging for the difference.`;
+    }
+
+    const load: LoadSummary = {
+      recommendedWh: plan.recommendedWh,
+      simultaneousW: sizing.simultaneousW,
+      peakSurgeW: sizing.peakSurgeW,
+    };
+    const match = matchStations(stationData, load);
+    const pool = match.pool;
+    const maxCap = Math.max(1, ...pool.map((s) => s.capacity_wh));
+    const maxCont = Math.max(1, ...pool.map((s) => s.output_continuous_w));
+    const maxPeak = Math.max(1, ...pool.map((s) => s.output_peak_w));
+
+    el.sizeMeters.innerHTML =
+      meter('Capacity vs largest verified model', fmt(plan.recommendedWh, 'Wh'), fmt(maxCap, 'Wh'), plan.recommendedWh / maxCap, plan.recommendedWh > maxCap) +
+      meter('Continuous vs largest verified model', fmt(sizing.simultaneousW, 'W'), fmt(maxCont, 'W'), sizing.simultaneousW / maxCont, sizing.simultaneousW > maxCont) +
+      meter('Surge vs largest verified inverter', fmt(sizing.peakSurgeW, 'W'), fmt(maxPeak, 'W'), sizing.peakSurgeW / maxPeak, sizing.peakSurgeW > maxPeak);
+
+    drawDonut(sizing.perDevice.map((d) => ({ label: d.label, value: d.dailyWh })));
+
+    if (rows.length === 0) {
+      el.sizeVerdict.textContent = 'Add appliances to see which limit binds.';
+      el.statusList.innerHTML =
+        statusItem(true, 'Load', 'Waiting on appliances', 'Pending') +
+        statusItem(true, 'Surge', 'No motor start yet', 'Pending') +
+        statusItem(true, 'Solar', 'Set sun hours after the load', 'Pending');
+      el.matches.innerHTML = '';
+    } else {
+      const eligibleNow = match.eligible;
+      const sizeLimit = catalogLimit(stationData, load);
+
+      el.sizeVerdict.textContent = eligibleNow.length
+        ? `${eligibleNow.length} verified model${eligibleNow.length === 1 ? '' : 's'} clear capacity, continuous output, and surge.`
+        : verdictText(sizeLimit, 'This load');
+
+      el.statusList.innerHTML =
+        statusItem(plan.recommendedWh <= maxCap, 'Capacity', fmt(plan.recommendedWh, 'Wh') + ' nameplate after losses', plan.recommendedWh <= maxCap ? 'Clear' : 'Short') +
+        statusItem(sizing.simultaneousW <= maxCont, 'Continuous', fmt(sizing.simultaneousW, 'W') + ' if everything runs', sizing.simultaneousW <= maxCont ? 'Clear' : 'Short') +
+        statusItem(
+          sizing.peakSurgeW === 0 || sizing.peakSurgeW <= maxPeak,
+          'Surge',
+          sizing.peakSurgeW ? fmt(sizing.peakSurgeW, 'W') + ' startup' : 'No motor in the load',
+          sizing.peakSurgeW === 0 || sizing.peakSurgeW <= maxPeak ? 'Clear' : 'Blocks',
+        );
+
+      if (eligibleNow.length) {
+        const byId = (id: string) => stationData.find((s) => s.id === id);
+        const smallest = byId(eligibleNow[0].station.id);
+        const spare = Math.round(eligibleNow[0].spareWh);
+        const longestMatch = [...eligibleNow].sort((a, b) => b.station.capacity_wh - a.station.capacity_wh)[0];
+        const longest = byId(longestMatch.station.id);
+        const rest = eligibleNow
+          .map((s) => byId(s.station.id))
+          .filter((s): s is StationRow => s !== undefined && s.id !== smallest?.id && s.id !== longest?.id)
+          .slice(0, 4);
+        if (!smallest || !longest) {
+          el.matches.innerHTML = '';
+        } else {
+        const smallestHours = runtimeFor(asSpec(smallest), rows).averageHours;
+        const longestHours = runtimeFor(asSpec(longest), rows).averageHours;
+        const picks = [
+          pickCard('Best fit', smallest, hours(smallestHours), 'Smallest verified unit that clears every calculated limit.'),
+          pickCard('Longest runtime', longest, hours(longestHours), 'Largest verified unit that still clears this load.'),
+        ];
+        const more = rest
+          .map((s) => {
+            const h = runtimeFor(asSpec(s), rows).averageHours;
+            const buy = s.amazon_url
+              ? `<a href="${esc(s.amazon_url)}" rel="sponsored nofollow noopener" target="_blank" class="press mt-3 inline-flex w-full items-center justify-center rounded-[var(--radius-control)] bg-moss-700 px-3 py-2 text-xs font-semibold text-white hover:bg-moss-600">Check price</a>`
+              : `<a href="/stations/${esc(s.id)}/" class="press mt-3 inline-flex w-full items-center justify-center rounded-[var(--radius-control)] border border-ink-200 px-3 py-2 text-xs font-semibold hover:border-moss-500 dark:border-ink-700">View</a>`;
+            return `<article class="rounded-[var(--radius-card)] border border-ink-200 p-3 dark:border-ink-800">
+              <img src="/images/stations/${esc(s.id)}.webp" alt="" width="64" height="48" class="mx-auto h-12 w-16 object-contain" />
+              <p class="mt-2 text-center text-xs font-semibold uppercase tracking-wide text-ink-500">${esc(s.brand)}</p>
+              <p class="mt-1 text-center text-sm font-semibold">${esc(s.model)}</p>
+              <p class="tabular mt-1 text-center text-xs text-ink-500">${s.capacity_wh.toLocaleString('en-US')} Wh</p>
+              <p class="tabular mt-2 text-center text-lg font-semibold">${hours(h)}</p>
+              ${buy}
+            </article>`;
+          })
+          .join('');
+        el.matches.innerHTML = `<p class="text-sm font-semibold">Recommended models for this load</p>
+          <p class="mt-1 text-sm text-ink-600 dark:text-ink-300">Smallest that clears every calculated limit: <strong class="text-ink-900 dark:text-ink-100">${esc(smallest.brand)} ${esc(smallest.model)}</strong> at ${smallest.capacity_wh.toLocaleString('en-US')} Wh, which leaves ${spare.toLocaleString('en-US')} Wh spare. These are estimates, not lab runtimes. Affiliate links may earn a commission.</p>
+          <div class="mt-4 grid gap-3 sm:grid-cols-2">${picks.join('')}</div>
+          ${more ? `<p class="mt-5 text-sm font-semibold">Compare with other models</p><div class="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">${more}</div>` : ''}
+          <ul class="mt-4 space-y-1 text-sm">${eligibleNow
+            .slice(0, 8)
+            .map(
+              (s) =>
+                `<li><button type="button" class="press cursor-pointer text-left text-moss-700 underline dark:text-moss-300" data-fit-id="${s.station.id}">${esc(s.station.brand)} ${esc(s.station.model)} · ${s.station.capacity_wh.toLocaleString('en-US')} Wh</button></li>`,
+            )
+            .join('')}</ul>`;
+        el.matches.querySelectorAll<HTMLButtonElement>('[data-fit-id]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const id = btn.dataset.fitId ?? '';
+            const found = stationData.find((s) => s.id === id);
+            if (found) currentBrand = found.brand;
+            el.runtimeStation.value = id;
+            setFlow('runtime');
+            renderBrands();
+            renderModels();
+            recalcRuntime();
+          });
+        });
+        }
+      } else {
+        // Name the binding limit, then say what to change. "No results" without
+        // a next action is where a sizing tool loses the reader.
+        const worst = rows.reduce((max, r) => (r.surgeWatts ?? 0) > (max.surgeWatts ?? 0) ? r : max, rows[0]);
+        const advice =
+          sizeLimit === 'surge' || sizeLimit === 'surge_unverified'
+            ? `The motor start on ${esc(worst.label)} is what blocks this load. Run it on its own, or accept a station that covers everything else.`
+            : sizeLimit === 'continuous'
+              ? 'Stagger the devices instead of running them together, which lowers the continuous requirement without changing the daily energy.'
+              : sizeLimit === 'combination'
+                ? 'This load needs two changes, not one: no model has both the capacity and the output it asks for. Cut a device and stagger the rest.'
+                : 'Cut the highest-draw device, or reduce its hours. Capacity is the binding limit here, so every watt-hour you remove shrinks the battery you need.';
+        el.matches.innerHTML = `<p class="text-sm text-ink-600 dark:text-ink-300">No verified model covers every limit. ${advice}</p>`;
+      }
+    }
+
+    recalcRuntime();
+    recalcCompare();
+  }
+
+  function hours(h: number) {
+    return h >= 10 ? `${h.toFixed(1)} h` : h > 0 ? `${h.toFixed(2)} h` : '0 h';
+  }
+
+  function amazonButton(station: StationRow, label = 'Check price on Amazon') {
+    if (!station.amazon_url) return '';
+    return `<a href="${esc(station.amazon_url)}" rel="sponsored nofollow noopener" target="_blank" class="press mt-3 inline-flex items-center justify-center rounded-[var(--radius-control)] bg-moss-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-moss-400">${esc(label)}</a>`;
+  }
+
+  function pickCard(title: string, station: StationRow, hoursLabel: string, note: string) {
+    const buy = station.amazon_url
+      ? `<a href="${esc(station.amazon_url)}" rel="sponsored nofollow noopener" target="_blank" class="press mt-3 inline-flex w-full items-center justify-center rounded-[var(--radius-control)] bg-moss-700 px-3 py-2 text-sm font-semibold text-white hover:bg-moss-600">Check price on Amazon</a>`
+      : `<a href="/stations/${esc(station.id)}/" class="press mt-3 inline-flex w-full items-center justify-center rounded-[var(--radius-control)] border border-ink-200 px-3 py-2 text-sm font-semibold hover:border-moss-500 dark:border-ink-700">View specs</a>`;
+    return `<article class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-950">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-moss-700 dark:text-moss-300">${esc(title)}</p>
+      <img src="/images/stations/${esc(station.id)}.webp" alt="" width="80" height="60" class="mx-auto mt-3 h-16 w-20 object-contain" />
+      <p class="mt-2 text-center text-xs font-semibold uppercase tracking-wide text-ink-500">${esc(station.brand)}</p>
+      <p class="mt-1 text-center text-sm font-semibold">${esc(station.model)}</p>
+      <p class="tabular mt-1 text-center text-xs text-ink-500">${station.capacity_wh.toLocaleString('en-US')} Wh · ${station.output_continuous_w.toLocaleString('en-US')} W</p>
+      <p class="tabular mt-3 text-center text-2xl font-semibold">${esc(hoursLabel)}</p>
+      <p class="mt-1 text-center text-xs text-ink-500">${esc(note)}</p>
+      ${buy}
+      <a href="/stations/${esc(station.id)}/" class="mt-2 block text-center text-xs text-moss-700 underline dark:text-moss-300">Full specs</a>
+    </article>`;
+  }
+
+  function setHeroValue(next: string) {
+    if (el.runtimeAverage.textContent === next) return;
+    el.runtimeAverage.textContent = next;
+    el.runtimeAverage.classList.remove('tick');
+    void el.runtimeAverage.offsetWidth;
+    el.runtimeAverage.classList.add('tick');
+  }
+
+  function recalcRuntime() {
+    const station = stationData.find((s) => s.id === el.runtimeStation.value) ?? stationData[0];
+    if (!station) {
+      el.runtimeCaption.textContent = 'No verified models in the database yet.';
+      el.runtimeBuy.innerHTML = '';
+      return;
+    }
+    el.runtimeCapacity.textContent = fmt(station.capacity_wh, 'Wh');
+    if (flow === 'size') {
+      const efficiency = Number(el.eff.value);
+      const reserve = Number(el.reserve.value);
+      const backupDays = Number(el.backup.value);
+      try {
+        const sizing = sizeSystem(rows, { inverterEfficiency: efficiency, reserveFactor: reserve });
+        const plan = chargePlan(sizing.rawDailyWh, sizing.recommendedWh, {
+          backupDays,
+          sunHours: Number(el.sun.value),
+          solarInputW: Math.max(0, Number(el.solar.value) || 0),
+          inverterEfficiency: efficiency,
+        });
+        setHeroValue(fmt(plan.recommendedWh, 'Wh'));
+        el.runtimeWorst.textContent = hours(0);
+        el.runtimeLoad.textContent = fmt(sizing.simultaneousW, 'W');
+        el.runtimeCapacity.textContent = fmt(plan.recommendedWh, 'Wh');
+        el.runtimeCaption.textContent = rows.length
+          ? `${backupDays}-day backup after inverter loss and reserve. Estimated, not tested.`
+          : 'Add appliances. The first number is the battery to shop, not a runtime.';
+        el.runtimeVerdict.textContent = '';
+        el.runtimeNotice.innerHTML = '';
+        const load: LoadSummary = {
+          recommendedWh: plan.recommendedWh,
+          simultaneousW: sizing.simultaneousW,
+          peakSurgeW: sizing.peakSurgeW,
+        };
+        const bestId = matchStations(stationData, load).eligible[0]?.station.id;
+        const best = bestId ? stationData.find((s) => s.id === bestId) : undefined;
+        el.runtimeBuy.innerHTML = rows.length && best ? amazonButton(best, `Check price on ${best.brand}`) : '';
+      } catch {
+        setHeroValue('0 Wh');
+        el.runtimeBuy.innerHTML = '';
+      }
+      return;
+    }
+    if (rows.length === 0) {
+      setHeroValue('0 h');
+      el.runtimeWorst.textContent = '0 h';
+      el.runtimeLoad.textContent = '0 W';
+      el.runtimeCaption.textContent = 'Add appliances to see how long this model lasts.';
+      el.runtimeVerdict.textContent = '';
+      el.runtimeNotice.innerHTML = '';
+      el.runtimeBuy.innerHTML = amazonButton(station, `Check price on ${station.brand}`);
+      return;
+    }
+    const r = runtimeFor(asSpec(station), rows);
+    setHeroValue(hours(r.averageHours));
+    el.runtimeWorst.textContent = hours(r.worstCaseHours);
+    el.runtimeLoad.textContent = fmt(r.simultaneousW, 'W');
+    el.runtimeCaption.textContent = `${station.brand} ${station.model}. Estimated, not tested.`;
+    el.runtimeVerdict.textContent = verdictText(r.bindingConstraint, `${station.brand} ${station.model}`, station);
+    if (r.bindingConstraint === 'surge') {
+      el.runtimeNotice.innerHTML = `<p class="rounded-[var(--radius-control)] bg-amber-accent-100 px-3 py-2 text-sm text-amber-accent-700">Peak ${fmt(station.output_peak_w, 'W')} is below the ${fmt(r.peakSurgeW, 'W')} startup in your load.</p>`;
+    } else if (r.bindingConstraint === 'surge_unverified') {
+      el.runtimeNotice.innerHTML = `<p class="rounded-[var(--radius-control)] bg-amber-accent-100 px-3 py-2 text-sm text-amber-accent-700">${esc(boostNotice(station))} <a class="underline" href="/guides/surge-vs-boost/">Surge versus boost</a>.</p>`;
+    } else if (r.bindingConstraint === 'continuous') {
+      el.runtimeNotice.innerHTML = `<p class="rounded-[var(--radius-control)] bg-amber-accent-100 px-3 py-2 text-sm text-amber-accent-700">Simultaneous draw ${fmt(r.simultaneousW, 'W')} exceeds continuous ${fmt(station.output_continuous_w, 'W')}.</p>`;
+    } else {
+      el.runtimeNotice.innerHTML = '';
+    }
+    el.runtimeBuy.innerHTML = amazonButton(station, `Check price on Amazon`);
+  }
+
+  function recalcCompare() {
+    const a = stationData.find((s) => s.id === el.compareA.value);
+    const b = stationData.find((s) => s.id === el.compareB.value);
+    if (!a || !b || rows.length === 0) {
+      el.compareVerdict.textContent = 'Add devices, then pick two models.';
+      el.compareGrid.innerHTML = '';
+      return;
+    }
+    const [left, right] = compareStations(asSpec(a), asSpec(b), rows);
+    const card = (side: typeof left, original: StationRow) => {
+      const constraint = side.runtime.bindingConstraint;
+      const blocked = Boolean(constraint);
+      const badgeText = constraint === 'surge' ? 'Surge Limit' : constraint === 'continuous' ? 'Overload' : constraint === 'capacity' ? 'Low Capacity' : constraint === 'surge_unverified' ? 'Unverified Boost' : 'Cleared';
+      const borderColor = blocked ? 'border-amber-accent-500 bg-amber-accent-100/20' : 'border-moss-500 bg-moss-100/10';
+      return `<div class="rounded-[12px] border p-4 ${borderColor}">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-xs font-semibold uppercase tracking-[0.14em] text-ink-300">${esc(side.station.brand)}</p>
+          <span class="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${blocked ? 'bg-amber-accent-500/20 text-amber-accent-300' : 'bg-moss-500/20 text-moss-300'}">${badgeText}</span>
+        </div>
+        <p class="mt-1 text-sm font-semibold">${esc(side.station.model)}</p>
+        <p class="display tabular mt-3 text-3xl font-medium">${hours(side.runtime.averageHours)}</p>
+        <p class="mt-3 text-xs text-ink-300">${verdictText(side.runtime.bindingConstraint, 'This model', original)}</p>
+        ${amazonButton(original)}
+      </div>`;
+    };
+    el.compareGrid.innerHTML = card(left, a) + card(right, b);
+    const blocked = [left, right].filter((s) => s.runtime.bindingConstraint);
+    el.compareVerdict.textContent = blocked.length
+      ? `${blocked.length === 2 ? 'Neither model' : 'One model'} clears every limit.`
+      : 'Both models can start and run this load. Compare the hours.';
+  }
+
+  function setCharge(next: 'full' | 'partial' | 'ac') {
+    chargeMode = next;
+    document.querySelectorAll<HTMLButtonElement>('[data-charge]').forEach((btn) => {
+      const on = btn.dataset.charge === next;
+      btn.classList.toggle('bg-moss-700', on);
+      btn.classList.toggle('text-white', on);
+      btn.setAttribute('aria-selected', String(on));
+    });
+    recalc();
+  }
+
+  function setFlow(next: 'runtime' | 'size') {
+    flow = next;
+    document.querySelectorAll<HTMLButtonElement>('[data-flow]').forEach((btn) => {
+      const on = btn.dataset.flow === next;
+      btn.classList.toggle('bg-moss-700', on);
+      btn.classList.toggle('text-white', on);
+      btn.setAttribute('aria-selected', String(on));
+    });
+    el.picker.hidden = next === 'size';
+    el.resultKicker.textContent = next === 'size' ? 'Battery to shop' : 'Estimated runtime';
+    recalc();
+  }
+
+  document.querySelectorAll('[data-add-device]').forEach((btn) => {
+    btn.addEventListener('click', () => addDevice((btn as HTMLElement).dataset.addDevice!));
+  });
+  document.getElementById('add-custom')?.addEventListener('click', addCustom);
+  document.querySelectorAll('[data-charge]').forEach((btn) => {
+    btn.addEventListener('click', () => setCharge((btn as HTMLElement).dataset.charge as 'full' | 'partial' | 'ac'));
+  });
+  document.querySelectorAll('[data-flow]').forEach((btn) => {
+    btn.addEventListener('click', () => setFlow((btn as HTMLElement).dataset.flow as 'runtime' | 'size'));
+  });
+
+  el.list.addEventListener('click', (event) => {
+    const target = event.target as HTMLElement;
+    if (target.dataset.remove !== undefined) {
+      rows.splice(Number(target.dataset.remove), 1);
+      renderList();
+    }
+  });
+
+  const applyInput = (input: HTMLInputElement | HTMLSelectElement) => {
+    const field = input.dataset.field as keyof DeviceInput | undefined;
+    const index = Number(input.dataset.index);
+    if (!field || Number.isNaN(index) || !rows[index]) return;
+    if (field === 'label') rows[index].label = input.value || 'Custom appliance';
+    else if (field === 'surgeWatts') {
+      const raw = input.value.trim();
+      rows[index].surgeWatts = raw === '' ? null : Math.max(0, Number(raw) || 0);
+    } else if (field === 'dutyCycle') rows[index].dutyCycle = Number(input.value) || 1;
+    else if (field === 'watts') rows[index].watts = Math.max(0, Number(input.value) || 0);
+    else if (field === 'hours') rows[index].hours = Math.max(0, Math.min(24, Number(input.value) || 0));
+  };
+
+  el.list.addEventListener('input', (event) => {
+    applyInput(event.target as HTMLInputElement);
+    paintDailyWh();
+    recalc();
+  });
+  el.list.addEventListener('change', (event) => {
+    applyInput(event.target as HTMLSelectElement);
+    paintDailyWh();
+    recalc();
+  });
+
+  for (const node of [el.eff, el.reserve, el.backup, el.sun, el.solar, el.runtimeStation, el.compareA, el.compareB]) {
+    node.addEventListener('change', recalc);
+    node.addEventListener('input', recalc);
+  }
+
+  el.copy.addEventListener('click', async () => {
+    const url = new URL(window.location.href);
+    const payload = new URLSearchParams();
+    payload.set('load', rows.map((r) => `${r.id}:${r.watts}:${r.hours}:${r.dutyCycle}`).join(','));
+    payload.set('days', el.backup.value);
+    payload.set('sun', el.sun.value);
+    if (el.runtimeStation.value) payload.set('station', el.runtimeStation.value);
+    payload.set('a', el.compareA.value);
+    payload.set('b', el.compareB.value);
+    url.search = '';
+    url.hash = `calculator?${payload}`;
+    try {
+      await navigator.clipboard.writeText(url.toString());
+      el.status.textContent = 'Link copied.';
+    } catch {
+      el.status.textContent = url.toString();
+    }
+    window.setTimeout(() => (el.status.textContent = ''), 4000);
+  });
+
+  const html = stationOptions();
+  el.runtimeStation.innerHTML = html;
+  el.compareA.innerHTML = html;
+  el.compareB.innerHTML = html;
+  if (stationData.length > 1) el.compareB.selectedIndex = 1;
+
+  const sharePrefix = '#calculator?';
+  const params = new URLSearchParams(window.location.hash.startsWith(sharePrefix)
+    ? window.location.hash.slice(sharePrefix.length)
+    : window.location.search);
+
+  /**
+   * Parse a `load=` value into rows. Shared by the share link arriving from a
+   * scenario page and by the scenario buttons, so both produce identical rows.
+   */
+  function applyLoadParam(raw: string) {
+    rows = [];
+    raw.split(',').forEach((chunk) => {
+      const [id, watts, hoursVal, duty] = chunk.split(':');
+      const meta = deviceMeta[id];
+      if (meta) {
+        rows.push({
+          id: meta.id,
+          label: meta.label,
+          watts: Number(watts) || meta.typical_w,
+          hours: Number(hoursVal) || meta.default_hours,
+          dutyCycle: Number(duty) || meta.duty_cycle,
+          surgeWatts: meta.surge_w,
+        });
+      } else if (id?.startsWith('custom-')) {
+        rows.push({
+          id,
+          label: 'Custom appliance',
+          watts: Number(watts) || 100,
+          hours: Number(hoursVal) || 4,
+          dutyCycle: Number(duty) || 1,
+          surgeWatts: null,
+        });
+      }
+    });
+  }
+
+  const shared = params.get('load');
+  if (shared) applyLoadParam(shared);
+  if (params.get('days')) el.backup.value = params.get('days')!;
+  if (params.get('sun')) el.sun.value = params.get('sun')!;
+  const sharedStation = params.get('station');
+  const sharedA = params.get('a');
+  const sharedB = params.get('b');
+  if (sharedA && stationData.some((s) => s.id === sharedA)) el.compareA.value = sharedA;
+  if (sharedB && stationData.some((s) => s.id === sharedB)) el.compareB.value = sharedB;
+  if (sharedStation && stationData.some((s) => s.id === sharedStation)) {
+    el.runtimeStation.value = sharedStation;
+    currentBrand = stationData.find((s) => s.id === sharedStation)?.brand ?? currentBrand;
+  } else {
+    const first = stationData.find((s) => s.brand === currentBrand) ?? stationData[0];
+    if (first) el.runtimeStation.value = first.id;
+  }
+  setFlow('runtime');
+  renderBrands();
+  renderModels();
+  renderList();
+
+  if (window.location.hash.startsWith(sharePrefix)) {
+    document.getElementById('calculator')?.scrollIntoView();
+  }
+
+  document.querySelectorAll<HTMLButtonElement>('[data-scenario]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      applyLoadParam(btn.dataset.load ?? '');
+      if (btn.dataset.days) el.backup.value = btn.dataset.days;
+      if (btn.dataset.sun) el.sun.value = btn.dataset.sun;
+      renderList();
+      setFlow('size');
+    });
+  });
+
+  document.getElementById('clear-load')?.addEventListener('click', () => {
+    rows = [];
+    renderList();
+    setFlow('runtime');
+  });
+</script>

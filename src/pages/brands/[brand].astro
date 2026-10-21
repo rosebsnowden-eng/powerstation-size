@@ -1,0 +1,249 @@
+---
+/**
+ * Brand hub. A filtered spec table plus the refrigerator verdict for each
+ * current model. Generated from the database; adding a verified record adds
+ * a row here on the next build.
+ */
+import Base from '../../layouts/Base.astro';
+import SpecTable from '../../components/SpecTable.astro';
+import db from '../../data/power-stations.json';
+import { BRANDS, BRAND_START_HERE, amazonUrlFor, brandFromSlug, fridgeHomeLoad, isCurrent, toStationSpec } from '../../lib/catalog.ts';
+import { runtimeFor } from '../../lib/calculate.ts';
+
+export function getStaticPaths() {
+  return BRANDS.map((brand) => ({
+    params: { brand: brand.slug },
+    props: { slug: brand.slug, name: brand.name },
+  }));
+}
+
+const { slug, name } = Astro.props;
+const resolved = brandFromSlug(slug) ?? name;
+
+const all = db.stations.filter((s) => s.brand === resolved);
+const current = all.filter(isCurrent);
+const hidden = all.length - current.length;
+const boostOnly = current.filter((s) => s.peak_is_surge === false);
+const fridge = fridgeHomeLoad();
+
+const fridgeRows = current
+  .map((station) => {
+    const runtime = runtimeFor(toStationSpec(station), fridge);
+    return { station, runtime };
+  })
+  .sort((a, b) => a.station.capacity_wh - b.station.capacity_wh);
+
+const amazonTag = (db.meta as { amazon_tag?: string }).amazon_tag ?? '';
+const startIds = BRAND_START_HERE[slug] ?? [];
+const startHere = startIds
+  .map((id) => current.find((s) => s.id === id))
+  .filter((s): s is (typeof current)[number] => s !== undefined)
+  .map((station) => ({
+    station,
+    amazon: amazonUrlFor(station, amazonTag),
+  }));
+if (startHere.length !== 3) {
+  throw new Error(`${resolved} hub expected 3 start-here models, got ${startHere.length}`);
+}
+
+const clears = fridgeRows.filter((r) => r.runtime.bindingConstraint === null).length;
+
+const origin = Astro.site ?? 'https://example.com';
+const breadcrumbSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'BreadcrumbList',
+  itemListElement: [
+    { '@type': 'ListItem', position: 1, name: 'Brands', item: new URL('/brands/', origin).href },
+    {
+      '@type': 'ListItem',
+      position: 2,
+      name: resolved,
+      item: new URL(`/brands/${slug}/`, origin).href,
+    },
+  ],
+};
+
+function verdict(constraint: string | null): string {
+  if (constraint === 'surge') return 'Startup blocked';
+  if (constraint === 'surge_unverified') return 'Boost only, not checked';
+  if (constraint === 'continuous') return 'Continuous output short';
+  if (constraint === 'capacity') return 'Capacity short';
+  return 'Clears this fridge load';
+}
+---
+
+<Base
+  title={`${resolved} portable power station specs`}
+  description={`${resolved} capacity, continuous output, and surge versus boost, read from manufacturer pages. Refrigerator startup is checked separately.`}
+  canonicalPath={`/brands/${slug}/`}
+>
+  <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+
+  <section class="mx-auto max-w-6xl px-4 py-12">
+    <nav aria-label="Breadcrumb" class="text-sm text-ink-500 dark:text-ink-400">
+      <a href="/brands/" class="underline hover:text-moss-700 dark:hover:text-moss-300">Brands</a>
+      <span aria-hidden="true"> / </span>
+      <span>{resolved}</span>
+    </nav>
+
+    <h1 class="mt-4 text-3xl font-semibold tracking-tight md:text-4xl">{resolved} portable power stations</h1>
+    <p class="mt-4 max-w-[68ch] text-ink-600 dark:text-ink-300">
+      {current.length} current model{current.length === 1 ? '' : 's'} in the verified database.
+      {hidden > 0 ? ` ${hidden} discontinued record stays in the JSON and is hidden here.` : ''}
+      {boostOnly.length > 0
+        ? ` ${boostOnly.length} of these publish a resistive boost figure instead of an inverter surge, so a fridge compressor is not treated as cleared on those rows.`
+        : ''}
+    </p>
+    <p class="mt-3 max-w-[68ch] text-sm text-ink-500 dark:text-ink-400">
+      Against a full-size fridge at 150 W running, 35 percent duty, and 1,200 W startup (an
+      estimated engineering range, not a measurement), {clears} of {current.length} clear every
+      limit. Affiliate links may earn a commission.
+    </p>
+
+    <section class="mt-10">
+      <h2 class="text-xl font-semibold tracking-tight">Start with these three</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        A small, mid, and larger {resolved} unit that currently have Amazon listings in this
+        catalog. Specs are transcribed from manufacturer pages, not lab tests.
+      </p>
+      <ol class="mt-6 grid gap-4 md:grid-cols-3">
+        {
+          startHere.map(({ station, amazon }, i) => (
+            <li class="rounded-[var(--radius-card)] border border-ink-200 bg-white p-4 dark:border-ink-800 dark:bg-ink-900">
+              <p class="text-xs font-semibold uppercase tracking-[0.14em] text-moss-700 dark:text-moss-300">
+                #{i + 1}
+              </p>
+              <img
+                src={`/images/stations/${station.id}.webp`}
+                alt={`${station.brand} ${station.model}`}
+                width="160"
+                height="120"
+                class="mx-auto mt-3 h-24 w-32 object-contain"
+              />
+              <h3 class="mt-3 text-base font-semibold">{station.model}</h3>
+              <p class="tabular mt-1 text-xs text-ink-500">
+                {station.capacity_wh.toLocaleString('en-US')} Wh · {station.output_continuous_w.toLocaleString('en-US')} W
+                {station.peak_is_surge === false ? ' · boost, not surge' : ''}
+              </p>
+              <div class="mt-4 flex flex-col gap-2">
+                {amazon ? (
+                  <a
+                    href={amazon}
+                    rel="sponsored nofollow noopener"
+                    target="_blank"
+                    class="press inline-flex justify-center rounded-[var(--radius-control)] bg-moss-700 px-3 py-2 text-sm font-semibold text-white hover:bg-moss-600"
+                  >
+                    Check price on Amazon
+                  </a>
+                ) : null}
+                <a
+                  href={`/stations/${station.id}/`}
+                  class="press inline-flex justify-center rounded-[var(--radius-control)] border border-ink-200 px-3 py-2 text-sm font-medium hover:border-moss-500 dark:border-ink-700"
+                >
+                  Full specs
+                </a>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+    </section>
+
+    <div class="mt-10">
+      <SpecTable stations={current} />
+    </div>
+
+    <section class="mt-12">
+      <h2 class="text-xl font-semibold tracking-tight">This fridge load, model by model</h2>
+      <p class="mt-3 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+        Same check the calculator runs. Open a row for the hours, the binding limit, and the
+        manufacturer source.
+      </p>
+      <ul class="mt-6 divide-y divide-ink-200 rounded-[var(--radius-card)] border border-ink-200 dark:divide-ink-800 dark:border-ink-800">
+        {
+          fridgeRows.map(({ station, runtime }) => (
+            <li>
+              <a
+                href={`/stations/${station.id}/refrigerator/`}
+                class="press flex flex-wrap items-baseline justify-between gap-3 px-4 py-4 hover:bg-ink-50 dark:hover:bg-ink-900"
+              >
+                <span>
+                  <span class="block font-medium">{station.model}</span>
+                  <span class="tabular mt-0.5 block text-xs text-ink-500 dark:text-ink-400">
+                    {station.capacity_wh.toLocaleString('en-US')} Wh / {station.output_continuous_w} W
+                    {station.peak_is_surge === false ? ' · boost' : ` / ${station.output_peak_w} W surge`}
+                  </span>
+                </span>
+                <span
+                  class:list={[
+                    'text-sm font-semibold',
+                    runtime.bindingConstraint
+                      ? 'text-amber-accent-700 dark:text-amber-accent-300'
+                      : 'text-moss-700 dark:text-moss-300',
+                  ]}
+                >
+                  {verdict(runtime.bindingConstraint)}
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </section>
+
+    <p class="mt-10 max-w-[68ch] text-sm text-ink-600 dark:text-ink-300">
+      Compare across brands in the
+      <a href="/stations/" class="text-moss-700 underline dark:text-moss-300">full table</a>,
+      or size a different load in the
+      <a href="/calculator/" class="text-moss-700 underline dark:text-moss-300">calculator</a>.
+      The
+      <a href="/guides/surge-vs-boost/" class="text-moss-700 underline dark:text-moss-300">surge versus boost</a>
+      page lists which peak figures are inverter surge and which are not.
+      {slug === 'anker-solix' || slug === 'bluetti' ? (
+        <>
+          {' '}
+          C1000 versus Elite 100 V2 is on
+          <a href="/guides/anker-solix-c1000-vs-bluetti-elite-100-v2/" class="text-moss-700 underline dark:text-moss-300">
+            this comparison
+          </a>.
+        </>
+      ) : null}
+      {slug === 'jackery' || slug === 'bluetti' ? (
+        <>
+          {' '}
+          Explorer 1000 v2 versus Elite 100 V2 is on
+          <a href="/guides/jackery-explorer-1000-v2-vs-bluetti-elite-100-v2/" class="text-moss-700 underline dark:text-moss-300">
+            this comparison
+          </a>.
+        </>
+      ) : null}
+      {slug === 'jackery' || slug === 'anker-solix' ? (
+        <>
+          {' '}
+          Explorer 1000 v2 versus C1000 is on
+          <a href="/guides/jackery-explorer-1000-v2-vs-anker-solix-c1000/" class="text-moss-700 underline dark:text-moss-300">
+            this comparison
+          </a>.
+        </>
+      ) : null}
+      {slug === 'jackery' ? (
+        <>
+          {' '}
+          1000 v2 versus 2000 v2 is on
+          <a href="/guides/jackery-explorer-1000-v2-vs-2000-v2/" class="text-moss-700 underline dark:text-moss-300">
+            this comparison
+          </a>.
+        </>
+      ) : null}
+      {slug === 'anker-solix' ? (
+        <>
+          {' '}
+          C1000 versus C1000 Gen 2 is on
+          <a href="/guides/anker-solix-c1000-vs-c1000-gen-2/" class="text-moss-700 underline dark:text-moss-300">
+            this comparison
+          </a>.
+        </>
+      ) : null}
+    </p>
+  </section>
+</Base>
