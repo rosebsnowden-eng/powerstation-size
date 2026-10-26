@@ -18,6 +18,17 @@ Do **not** submit the 491 AI-only directories or the blog-comment URLs. PowerSta
 | Public source | — | https://github.com/rosebsnowden-eng/powerstation-size |
 | IndexNow | — | Key live; Bing 200 / IndexNow 202 |
 
+## Submitted 2026-10-26
+
+| Platform | DR (pack) | Result |
+|---|---|---|
+| chinese-independent-developer | GitHub 61k★ | **Merged.** Live on master. https://github.com/1c7/chinese-independent-developer/pull/1621 |
+| AppRater | 35 | **Received.** id **120564**. https://apprater.net/api/submissions |
+| DevPages | — | **pending_review.** category `productivity`, pricing Free. https://devpages.io/submit-a-tool |
+| 小木屋 wechalet | sheet 2 | **申请成功** (`code: 0000`). https://wechalet.cn/appstore/add |
+| Paggu | 35 | Comment **#331290** on submit page. https://www.paggu.com/submit-your-startup/#comment-331290 |
+| Launching Next | 51 | Still queued. Thanks id **164738**. |
+
 ## Operator login required (do these, in this order)
 
 Copy from `docs/09-outreach-copy.md` when a form needs a blurb.
@@ -35,13 +46,18 @@ Copy from `docs/09-outreach-copy.md` when a form needs a blurb.
 11. **F6S** https://www.f6s.com/
 12. **FinancesOnline** https://financesonline.com/add-product/
 13. **StackShare** https://stackshare.io/submit/
-14. **Uneed** https://www.uneed.best/submit-a-tool — no account to start, then signup
-15. **SiteLike** https://www.sitelike.org/similar/powerstationsize.com/ — captcha
-16. **SoMuch** https://somuch.com/submit-links/ — reCAPTCHA
-17. **Submission Web Directory** https://www.submissionwebdirectory.com/submit.php — image captcha
-18. **Marketing Internet Directory** https://www.marketinginternetdirectory.com/submit.php — image captcha
-19. **Webwiki** https://www.webwiki.com/info/add-website.html
-20. **Pitchwall / SideProjectors / InventList / PromoteProject** — login
+14. **Uneed** https://www.uneed.best/submit-a-tool — scrape then signup; POST without session 400
+15. **10015 Product Finder** https://10015.io/product-finder/submit — needs session + image blobs
+16. **SiteLike** https://www.sitelike.org/similar/powerstationsize.com/ — captcha
+17. **SoMuch** https://somuch.com/submit-links/ — reCAPTCHA
+18. **Submission Web Directory** https://www.submissionwebdirectory.com/submit.php — image captcha
+19. **Marketing Internet Directory** https://www.marketinginternetdirectory.com/submit.php — image captcha
+20. **Webwiki** https://www.webwiki.com/info/add-website.html
+21. **轻工具投稿** https://qinggongju.com/tougao — 必须登录
+22. **爱达杂货铺** https://adzhp.cc/submit — 留言/登录墙
+23. **w2solo / 电鸭 / 新趣集** — 登录发帖
+24. **Pitchwall / SideProjectors / InventList / PromoteProject / FiveTaco** — login or paid
+25. **Tally w4Jb4b / wvY09d** — 必填 logo / 截图上传
 
 Skip Fast-Track $99 on Launching Next unless a listing actually publishes.
 
