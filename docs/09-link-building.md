@@ -29,6 +29,8 @@ Do not buy directory packs. Do not swap links with unrelated blogs. Do not post 
 | DevPages | pending_review |
 | 小木屋 wechalet | 申请成功 |
 | Paggu | comment 331290 |
+| Uneed | scheduled 2027-05-31 https://www.uneed.best/edit/waiting-line/68970 |
+| BetaList | claim https://betalist.com/claim/HXG2rGiUjo8kscPLW6bKjnVSxqP5ByEg |
 
 Full 800+ pack triage: `docs/10-directory-submissions.md`.
 

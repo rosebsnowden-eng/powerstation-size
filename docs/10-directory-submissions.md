@@ -29,6 +29,17 @@ Do **not** submit the 491 AI-only directories or the blog-comment URLs. PowerSta
 | Paggu | 35 | Comment **#331290** on submit page. https://www.paggu.com/submit-your-startup/#comment-331290 |
 | Launching Next | 51 | Still queued. Thanks id **164738**. |
 
+## Submitted 2026-11-02 (Chrome + AdsPower fingerprint)
+
+No app named **egolite** on this Mac. Used Google Chrome (Apple Events) and AdsPower profile `k1hkexc1` (US ISP, CDP 49724). HubStudio CDP 55026 was on Semrush, left alone.
+
+| Platform | Result |
+|---|---|
+| **Uneed** | Product created, **Launch Scheduled 2027-05-31** (free waiting line). Edit: https://www.uneed.best/edit/waiting-line/68970 Public slug: https://www.uneed.best/tool/powerstation-size Account: AdsPower Google `armidamanakis@gmail.com`. Skip-the-line $39.99 / Fast-track $14.99 not purchased. |
+| **BetaList** | Agent draft **unclaimed**. Claim (expires 2026-11-09): https://betalist.com/claim/HXG2rGiUjo8kscPLW6bKjnVSxqP5ByEg Icon + og.png attached. Founder must open, pick a paid plan, then it reviews. |
+| 10015 | Form filled in Chrome (name/url/details/Free). Category/tag combobox still required; submit blocked. Sign-in wall. |
+| AlternativeTo / Product Hunt / SourceForge | Chrome tabs stuck on Cloudflare Turnstile. Need a human click. Tabs: T32 / T31 / T46. |
+
 ## Operator login required (do these, in this order)
 
 Copy from `docs/09-outreach-copy.md` when a form needs a blurb.
